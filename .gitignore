@@ -1,0 +1,11 @@
+# Ambiente virtual
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Dados gerados pelo notebook (reproduziveis a partir do CSV bruto)
+data/processed/
+
+# Jupyter
+.ipynb_checkpoints/
