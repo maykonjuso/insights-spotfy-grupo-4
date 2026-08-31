@@ -1,25 +1,26 @@
 
-=== Diagnóstico bernoulli_spike ===
-                                mean     sd eti89_lb eti89_ub ess_bulk ess_tail r_hat mcse_mean  mcse_sd
-mu_alpha                      -1.491  0.019     -1.5     -1.5      507      427   nan   0.00085  0.00058
-sigma_alpha                    1.703  0.042      1.6      1.8      482      412   nan    0.0019   0.0015
-mu_beta[danceability]          0.142   0.02     0.11     0.17      481      433   nan   0.00091  0.00065
-mu_beta[energy]               -0.132   0.02    -0.16     -0.1      420      434   nan   0.00095  0.00066
-mu_beta[loudness]              0.173  0.022     0.14     0.21      510      448   nan   0.00098  0.00063
-mu_beta[speechiness]          -0.087  0.018    -0.12   -0.056      498      489   nan   0.00082   0.0006
-mu_beta[acousticness]         -0.163  0.019    -0.19    -0.13      492      432   nan   0.00085  0.00061
-mu_beta[instrumentalness]     -0.049  0.022   -0.084   -0.013      513      512   nan   0.00099  0.00067
-mu_beta[liveness]             -0.108   0.02    -0.14   -0.076      524      411   nan   0.00086  0.00059
-mu_beta[valence]              -0.186  0.021    -0.22    -0.15      591      461   nan   0.00087  0.00057
-mu_beta[tempo]                 0.034  0.021    0.002    0.066      475      379   nan   0.00095  0.00068
-mu_beta[explicit]              0.078  0.018    0.051     0.11      323      341   nan   0.00098  0.00068
-sigma_beta[danceability]       0.275  0.021     0.24     0.31      556      376   nan   0.00087  0.00064
-sigma_beta[energy]             0.039  0.012    0.023    0.059      441      373   nan   0.00058  0.00062
-sigma_beta[loudness]           0.345  0.019     0.32     0.38      416      403   nan   0.00091  0.00066
-sigma_beta[speechiness]        0.135  0.019     0.11     0.17      500      380   nan   0.00087  0.00062
-sigma_beta[acousticness]       0.196  0.021     0.17     0.23      472      503   nan   0.00099  0.00068
-sigma_beta[instrumentalness]   0.213  0.021     0.18     0.25      511      515   nan   0.00093  0.00064
-sigma_beta[liveness]           0.093  0.017    0.068     0.12      474      462   nan   0.00078  0.00065
-sigma_beta[valence]            0.168  0.023     0.13     0.21      471      449   nan     0.001  0.00081
-sigma_beta[tempo]               0.06  0.016    0.039    0.087      468      449   nan   0.00075  0.00069
-sigma_beta[explicit]           0.191  0.017     0.16     0.22      438      484   nan   0.00079  0.00052
+=== Diagnóstico bernoulli (ADVI) ===
+                                 mean      sd eti89_lb eti89_ub ess_bulk ess_tail r_hat mcse_mean  mcse_sd
+mu_alpha                      -1.4737  0.0093     -1.5     -1.5     2001     2021   nan   0.00021  0.00014
+sigma_alpha                    1.8207  0.0128      1.8      1.8     1937     1954   nan   0.00029  0.00021
+mu_beta[danceability]          0.1024  0.0106    0.086     0.12     2194     2069   nan   0.00023  0.00016
+mu_beta[energy]               -0.1337  0.0107    -0.15    -0.12     1771     1938   nan   0.00025  0.00018
+mu_beta[loudness]              0.2242  0.0092     0.21     0.24     2020     1854   nan   0.00021  0.00015
+mu_beta[speechiness]          -0.0806  0.0101   -0.097   -0.064     1916     1976   nan   0.00023  0.00017
+mu_beta[acousticness]         -0.1201  0.0102    -0.14     -0.1     1903     1686   nan   0.00023  0.00017
+mu_beta[instrumentalness]     -0.0134  0.0104    -0.03   0.0029     1990     2047   nan   0.00023  0.00016
+mu_beta[liveness]             -0.1115  0.0101    -0.13   -0.096     1931     1849   nan   0.00023  0.00016
+mu_beta[valence]              -0.1455  0.0101    -0.16    -0.13     2196     2038   nan   0.00022  0.00015
+mu_beta[tempo]                 0.0153  0.0094  0.00039     0.03     1829     1728   nan   0.00022  0.00016
+mu_beta[explicit]              0.0931  0.0084     0.08     0.11     1767     1594   nan    0.0002  0.00015
+sigma_beta[danceability]       0.2564  0.0105     0.24     0.27     2006     1616   nan   0.00023  0.00017
+sigma_beta[energy]             0.2379  0.0102     0.22     0.25     1930     1635   nan   0.00023  0.00016
+sigma_beta[loudness]           0.4168  0.0073     0.41     0.43     1993     1932   nan   0.00016  0.00011
+sigma_beta[speechiness]        0.1805  0.0089     0.17     0.19     2006     1929   nan    0.0002  0.00014
+sigma_beta[acousticness]       0.3163  0.0102      0.3     0.33     1860     1962   nan   0.00024  0.00016
+sigma_beta[instrumentalness]   0.3338  0.0108     0.32     0.35     2105     2000   nan   0.00023  0.00017
+sigma_beta[liveness]           0.1232  0.0097     0.11     0.14     2065     1959   nan   0.00021  0.00016
+sigma_beta[valence]            0.2155  0.0101      0.2     0.23     1815     1819   nan   0.00024  0.00018
+sigma_beta[tempo]              0.0458  0.0087    0.033    0.061     1774     1906   nan   0.00021  0.00017
+sigma_beta[explicit]           0.2023  0.0082     0.19     0.22     1996     1992   nan   0.00018  0.00013
+Tempo NUTS bernoulli: 5.6 min

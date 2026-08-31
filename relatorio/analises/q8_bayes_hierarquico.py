@@ -75,9 +75,15 @@ SPIKE_SEED = 42
 # ---------------------------------------------------------------------------
 # Sampling defaults
 # ---------------------------------------------------------------------------
-# ADVI no fit_full (NUTS inviável em Windows sem g++); NUTS só no spike.
+# NUTS completo (g++ via Anaconda mingw-w64 adicionado ao PATH no shell).
+NUTS_DRAWS = 750
+NUTS_TUNE = 1000
+NUTS_CHAINS = 2
+NUTS_TARGET_ACCEPT = 0.95
+
+# ADVI fallback (Bernoulli)
 ADVI_ITER = 20_000
-ADVI_DRAWS = 2_000     # posterior draws amostrados da aproximação ADVI
+ADVI_DRAWS = 2_000
 ADVI_LEARNING_RATE = 5e-3
 
 
@@ -216,49 +222,68 @@ def fit_spike(df_m: pd.DataFrame, feats: list[str], n_generos: int, family: str)
 
 
 def fit_full(df_m: pd.DataFrame, feats: list[str], n_generos: int, family: str):
-    """ADVI nos dados completos (NUTS inviável em Windows sem g++).
+    """Ajusta modelo nos dados completos.
 
-    Estratégia híbrida:
-      - ADVI rápido em todos os dados (~1-2 min/modelo)
-      - Não tem warnings de rhat (otimização determinística)
-      - Para o caso prático (efeitos médios + variação entre gêneros) é
-        equivalente ao NUTS pós warmup, mas mais rápido e estável.
+    Estrategia por modelo:
+      - Gaussian: NUTS 2 chains (g++ via Anaconda mingw-w64) - converge OK
+      - Bernoulli: ADVI 20k iteracoes - NUTS divergia (1500 divergs) por
+        geometria ruim do modelo logit com efeitos aleatorios
     """
-    print(f"[full:{family}] ajustando ADVI em {len(df_m):,} faixas (dados completos)...")
-    t0 = time.time()
-    model = build_model(df_m, feats, n_generos, family)
-    with model:
-        approx = pm.fit(
-            n=ADVI_ITER,
-            method='advi',
-            random_seed=SPIKE_SEED,
-            progressbar=False,
-            obj_optimizer=pm.adam(learning_rate=ADVI_LEARNING_RATE),
-        )
-    idata = approx.sample(draws=ADVI_DRAWS, random_seed=SPIKE_SEED)
-    elapsed = time.time() - t0
-    print(f"[full:{family}] ADVI concluido em {elapsed/60:.1f} min")
-    return idata, elapsed
+    if family == 'gaussian':
+        print(f"[full:{family}] ajustando NUTS ({NUTS_CHAINS} chains x {NUTS_DRAWS} draws, tune={NUTS_TUNE})...")
+        t0 = time.time()
+        model = build_model(df_m, feats, n_generos, family)
+        with model:
+            idata = pm.sample(
+                draws=NUTS_DRAWS,
+                tune=NUTS_TUNE,
+                chains=NUTS_CHAINS,
+                cores=1,
+                target_accept=NUTS_TARGET_ACCEPT,
+                random_seed=SPIKE_SEED,
+                progressbar=False,
+            )
+        elapsed = time.time() - t0
+        print(f"[full:{family}] NUTS concluido em {elapsed/60:.1f} min")
+        return idata, elapsed
+    else:
+        # Bernoulli: NUTS divergia por geometria do modelo (logit com random slopes)
+        print(f"[full:{family}] ajustando ADVI ({ADVI_ITER} iter)...")
+        t0 = time.time()
+        model = build_model(df_m, feats, n_generos, family)
+        with model:
+            approx = pm.fit(
+                n=ADVI_ITER,
+                method='advi',
+                random_seed=SPIKE_SEED,
+                progressbar=False,
+                obj_optimizer=pm.adam(learning_rate=ADVI_LEARNING_RATE),
+            )
+        idata = approx.sample(draws=ADVI_DRAWS, random_seed=SPIKE_SEED)
+        elapsed = time.time() - t0
+        print(f"[full:{family}] ADVI concluido em {elapsed/60:.1f} min")
+        return idata, elapsed
 
 
 def diagnostics(idata, family: str) -> str:
-    """Resumo diagnóstico para ADVI (sem rhat/diverg)."""
-    lines = [f"\n=== Diagnóstico {family} (ADVI) ==="]
+    """Resumo diagnóstico: R-hat, ESS, divergências."""
+    method = "NUTS" if family == "gaussian" else "ADVI"
+    lines = [f"\n=== Diagnóstico {family} ({method}) ==="]
     summary = az.summary(idata, var_names=['mu_alpha', 'sigma_alpha', 'mu_beta', 'sigma_beta'])
     lines.append(summary.to_string())
+    if hasattr(idata, 'sample_stats') and 'diverging' in idata.sample_stats:
+        n_div = int(idata.sample_stats.diverging.sum())
+        lines.append(f"\nDivergências: {n_div}")
     return "\n".join(lines)
 
 
 def save_posterior(idata, family: str):
-    """Salva posterior como pickle (Python-native, sem dep externa).
+    """Salva posterior como NetCDF (h5netcdf engine).
 
-    NetCDF exigiria netCDF4/h5netcdf; pickle funciona out-of-the-box.
-    Carregamento: idata = pickle.load(open(path, 'rb'))
+    Carregamento: idata = az.from_netcdf(path)
     """
-    import pickle
-    path = os.path.join(RESULTS_DIR, f"q8_model_{family}.pkl")
-    with open(path, 'wb') as f:
-        pickle.dump(idata, f)
+    path = os.path.join(RESULTS_DIR, f"q8_model_{family}.nc")
+    idata.to_netcdf(path, engine='h5netcdf')
     print(f"[save] posterior salvo em {path}")
 
 
@@ -443,7 +468,7 @@ def save_sigma_plot():
         print(f"[sigma_plot] nenhuma linha sigma_beta encontrada (col={name_col})")
         return
     sigma_rows['feature'] = (
-        sigma_rows[name_col].str.extract(r"\[(.+)\]").iloc[:, 0].str.strip("'\"")
+        sigma_rows[name_col].astype(str).str.extract(r"\[(.+)\]").iloc[:, 0].str.strip("'\"")
     )
 
     fig, ax = plt.subplots(figsize=(10, 6))

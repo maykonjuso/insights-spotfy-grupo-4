@@ -1,6 +1,5 @@
-"""Re-gera CSVs e plots a partir dos pickles salvos (sem re-fitar)."""
+"""Re-gera CSVs e plots a partir dos NetCDFs salvos (sem re-fitar)."""
 import os
-import pickle
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -37,14 +36,13 @@ feat_stds = df_m[feats].std()
 df_m[feats] = (df_m[feats] - feat_means) / feat_stds
 genero_cats = sorted(df_m['genero_principal'].unique())
 
-# Carrega pickles e gera artifacts
+# Carrega NetCDFs e gera artifacts
 for fam in ['gaussian', 'bernoulli']:
-    pkl_path = os.path.join(RESULTS_DIR, f'q8_model_{fam}.pkl')
-    if not os.path.exists(pkl_path):
-        print(f"{fam}: pickle nao encontrado, pulando")
+    nc_path = os.path.join(RESULTS_DIR, f'q8_model_{fam}.nc')
+    if not os.path.exists(nc_path):
+        print(f"{fam}: nc nao encontrado, pulando")
         continue
-    with open(pkl_path, 'rb') as f:
-        idata = pickle.load(f)
+    idata = az.from_netcdf(nc_path)
     print(f"=== {fam} ===")
     save_coefs(idata, feats, genero_cats, fam)
     save_forest_plots(idata, feats, genero_cats, fam)
