@@ -37,7 +37,7 @@ q7 = b64("q7_extremes.png")
 
 # Q8 (Bayes hierarquico) — charts opcionais. Se os artefatos nao existirem,
 # a secao Q8 cai gracefully para placeholder.
-Q8_RESULTS = os.path.join(os.path.dirname(_HERE), "analises", "resultados")
+Q8_RESULTS = os.path.join(_HERE, "analises", "resultados")
 
 def _q8_b64(name):
     """Carrega PNG de resultados/q8_*.png se existir; senao retorna ''."""

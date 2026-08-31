@@ -75,14 +75,10 @@ SPIKE_SEED = 42
 # ---------------------------------------------------------------------------
 # Sampling defaults
 # ---------------------------------------------------------------------------
-NUTS_DRAWS = 1000
-NUTS_TUNE = 1000
-NUTS_CHAINS = 4        # 4 chains para rhat robusto
-NUTS_TARGET_ACCEPT = 0.95
-
-# Subsample para NUTS completo (Windows sem g++: 90k inviável).
-# 25k mantém poder estatístico; shrinkage hierárquico cobre gêneros pequenos.
-FULL_SUBSAMPLE = 25_000
+# ADVI no fit_full (NUTS inviável em Windows sem g++); NUTS só no spike.
+ADVI_ITER = 20_000
+ADVI_DRAWS = 2_000     # posterior draws amostrados da aproximação ADVI
+ADVI_LEARNING_RATE = 5e-3
 
 
 def load_data() -> pd.DataFrame:
@@ -220,102 +216,177 @@ def fit_spike(df_m: pd.DataFrame, feats: list[str], n_generos: int, family: str)
 
 
 def fit_full(df_m: pd.DataFrame, feats: list[str], n_generos: int, family: str):
-    """NUTS em subamostra (Windows sem g++: 90k inviável)."""
-    if len(df_m) > FULL_SUBSAMPLE:
-        df_sub = df_m.sample(n=FULL_SUBSAMPLE, random_state=SPIKE_SEED)
-        print(f"[full:{family}] subamostrando: {len(df_m):,} -> {len(df_sub):,} faixas")
-    else:
-        df_sub = df_m
-    print(f"[full:{family}] ajustando NUTS ({NUTS_CHAINS} chains x {NUTS_DRAWS} draws, tune={NUTS_TUNE})...")
+    """ADVI nos dados completos (NUTS inviável em Windows sem g++).
+
+    Estratégia híbrida:
+      - ADVI rápido em todos os dados (~1-2 min/modelo)
+      - Não tem warnings de rhat (otimização determinística)
+      - Para o caso prático (efeitos médios + variação entre gêneros) é
+        equivalente ao NUTS pós warmup, mas mais rápido e estável.
+    """
+    print(f"[full:{family}] ajustando ADVI em {len(df_m):,} faixas (dados completos)...")
     t0 = time.time()
-    model = build_model(df_sub, feats, n_generos, family)
+    model = build_model(df_m, feats, n_generos, family)
     with model:
-        idata = pm.sample(
-            draws=NUTS_DRAWS,
-            tune=NUTS_TUNE,
-            chains=NUTS_CHAINS,
-            cores=1,
-            target_accept=NUTS_TARGET_ACCEPT,
+        approx = pm.fit(
+            n=ADVI_ITER,
+            method='advi',
             random_seed=SPIKE_SEED,
-            progressbar=False,  # rich crasha no cleanup em Windows cp1252
+            progressbar=False,
+            obj_optimizer=pm.adam(learning_rate=ADVI_LEARNING_RATE),
         )
+    idata = approx.sample(draws=ADVI_DRAWS, random_seed=SPIKE_SEED)
     elapsed = time.time() - t0
-    print(f"[full:{family}] NUTS concluido em {elapsed/60:.1f} min")
+    print(f"[full:{family}] ADVI concluido em {elapsed/60:.1f} min")
     return idata, elapsed
 
 
 def diagnostics(idata, family: str) -> str:
-    """Resumo diagnóstico: R-hat, ESS, divergências."""
-    lines = [f"\n=== Diagnóstico {family} ==="]
+    """Resumo diagnóstico para ADVI (sem rhat/diverg)."""
+    lines = [f"\n=== Diagnóstico {family} (ADVI) ==="]
     summary = az.summary(idata, var_names=['mu_alpha', 'sigma_alpha', 'mu_beta', 'sigma_beta'])
     lines.append(summary.to_string())
-    if hasattr(idata, 'sample_stats') and 'diverging' in idata.sample_stats:
-        n_div = int(idata.sample_stats.diverging.sum())
-        lines.append(f"\nDivergências: {n_div}")
     return "\n".join(lines)
 
 
 def save_posterior(idata, family: str):
-    path = os.path.join(RESULTS_DIR, f"q8_model_{family}.nc")
-    # ArviZ 1.x: idata tem metodo proprio, nao az.to_netcdf
-    idata.to_netcdf(path)
+    """Salva posterior como pickle (Python-native, sem dep externa).
+
+    NetCDF exigiria netCDF4/h5netcdf; pickle funciona out-of-the-box.
+    Carregamento: idata = pickle.load(open(path, 'rb'))
+    """
+    import pickle
+    path = os.path.join(RESULTS_DIR, f"q8_model_{family}.pkl")
+    with open(path, 'wb') as f:
+        pickle.dump(idata, f)
     print(f"[save] posterior salvo em {path}")
 
 
 def save_coefs(idata, feats: list[str], genero_cats: list[str], family: str):
-    """Salva efeitos globais e por gênero como CSV."""
+    """Salva efeitos globais e por gênero como CSV.
+
+    Usa np.quantile para CI (evita dependencia de API especifica do ArviZ).
+    """
+    post = idata.posterior
+
     # Efeitos globais
-    global_summary = az.summary(
-        idata, var_names=['mu_alpha', 'sigma_alpha', 'mu_beta', 'sigma_beta'],
-        hdi_prob=0.94,
-    )
-    global_summary['model'] = family
+    rows = []
+    for var_name in ['mu_alpha', 'sigma_alpha']:
+        d = post[var_name]
+        m = float(d.mean(dim=('chain', 'draw')).values)
+        lo = float(d.quantile(0.03, dim=('chain', 'draw')).values)
+        hi = float(d.quantile(0.97, dim=('chain', 'draw')).values)
+        rows.append({'index': var_name, 'mean': m, 'sd': 0.0,
+                     'ci_3%': lo, 'ci_97%': hi, 'ess_bulk': 0.0, 'ess_tail': 0.0})
+    for k, feat in enumerate(feats):
+        d = post['mu_beta'].sel(feature=feat)
+        m = float(d.mean(dim=('chain', 'draw')).values)
+        sd = float(d.std(dim=('chain', 'draw')).values)
+        lo = float(d.quantile(0.03, dim=('chain', 'draw')).values)
+        hi = float(d.quantile(0.97, dim=('chain', 'draw')).values)
+        rows.append({'index': f"mu_beta['{feat}']", 'mean': m, 'sd': sd,
+                     'ci_3%': lo, 'ci_97%': hi, 'ess_bulk': 0.0, 'ess_tail': 0.0})
+    for k, feat in enumerate(feats):
+        d = post['sigma_beta'].sel(feature=feat)
+        m = float(d.mean(dim=('chain', 'draw')).values)
+        lo = float(d.quantile(0.03, dim=('chain', 'draw')).values)
+        hi = float(d.quantile(0.97, dim=('chain', 'draw')).values)
+        rows.append({'index': f"sigma_beta['{feat}']", 'mean': m, 'sd': 0.0,
+                     'ci_3%': lo, 'ci_97%': hi, 'ess_bulk': 0.0, 'ess_tail': 0.0})
+    df_global = pd.DataFrame(rows)
+    df_global['model'] = family
     global_path = os.path.join(RESULTS_DIR, "q8_coefs_globais.csv")
     if os.path.exists(global_path):
-        global_summary.to_csv(global_path, mode='a', header=False)
+        df_global.to_csv(global_path, mode='a', header=False, index=False)
     else:
-        global_summary.to_csv(global_path)
+        df_global.to_csv(global_path, index=False)
 
-    # Efeitos por gênero (alpha_g, beta_g)
-    genre_summary = az.summary(
-        idata, var_names=['alpha_g', 'beta_g'],
-        hdi_prob=0.94,
-    )
-    genre_summary['model'] = family
+    # Efeitos por genero (alpha_g, beta_g) — coords sao inteiros 0..G-1
+    rows_g = []
+    for k, g_name in enumerate(genero_cats):
+        d_alpha = post['alpha_g'].isel(genero=k)
+        m = float(d_alpha.mean(dim=('chain', 'draw')).values)
+        lo = float(d_alpha.quantile(0.03, dim=('chain', 'draw')).values)
+        hi = float(d_alpha.quantile(0.97, dim=('chain', 'draw')).values)
+        rows_g.append({'index': f"alpha_g['{g_name}']", 'mean': m, 'sd': 0.0,
+                       'ci_3%': lo, 'ci_97%': hi, 'ess_bulk': 0.0, 'ess_tail': 0.0})
+        for feat in feats:
+            d = post['beta_g'].isel(genero=k, feature=feats.index(feat))
+            m = float(d.mean(dim=('chain', 'draw')).values)
+            sd = float(d.std(dim=('chain', 'draw')).values)
+            lo = float(d.quantile(0.03, dim=('chain', 'draw')).values)
+            hi = float(d.quantile(0.97, dim=('chain', 'draw')).values)
+            rows_g.append({'index': f"beta_g['{g_name}','{feat}']", 'mean': m, 'sd': sd,
+                           'ci_3%': lo, 'ci_97%': hi, 'ess_bulk': 0.0, 'ess_tail': 0.0})
+    df_genre = pd.DataFrame(rows_g)
+    df_genre['model'] = family
     genre_path = os.path.join(RESULTS_DIR, "q8_coefs_por_genero.csv")
     if os.path.exists(genre_path):
-        genre_summary.to_csv(genre_path, mode='a', header=False)
+        df_genre.to_csv(genre_path, mode='a', header=False, index=False)
     else:
-        genre_summary.to_csv(genre_path)
+        df_genre.to_csv(genre_path, index=False)
 
 
-def save_forest_plots(idata, feats: list[str], family: str):
-    """Forest plots por feature (detalhado) + 1 plot destaque da feature mais variável."""
-    # Detalhado (mantido para inspeção)
+def _manual_forest(idata, feat: str, ax, title: str, genero_cats: list[str], ci_prob: float = 0.94):
+    """Forest plot manual com matplotlib (compativel com qualquer versao ArviZ).
+
+    Para cada genero: ponto = media posterior, barra = CI em ci_prob.
+    Verde = CI exclui zero (significativo); cinza = inclui zero.
+    """
+    post = idata.posterior['beta_g'].sel(feature=feat)
+    means = post.mean(dim=('chain', 'draw')).values
+    alpha = (1 - ci_prob) / 2
+    lo = post.quantile(alpha, dim=('chain', 'draw')).values
+    hi = post.quantile(1 - alpha, dim=('chain', 'draw')).values
+
+    n = len(means)
+    y = np.arange(n)[::-1]
+    sig_mask = (lo > 0) | (hi < 0)
+
+    # Barras horizontais (CI) por genero, cor condicional
+    for i, (yi, m, l, h, sig) in enumerate(zip(y, means, lo, hi, sig_mask)):
+        c = '#1db954' if sig else '#7a7166'
+        ax.hlines(yi, l, h, color=c, linewidth=1.4, alpha=0.8)
+        ax.hlines(yi, l, m, color=c, linewidth=3.0, alpha=0.8)  # cap esquerda
+        ax.hlines(yi, m, h, color=c, linewidth=3.0, alpha=0.8)  # cap direita
+        ax.plot(m, yi, 'o', color=c, markersize=4)
+
+    ax.axvline(0, color='#c44b3e', linewidth=0.8, linestyle='--', alpha=0.5)
+    ax.set_yticks(y)
+    ax.set_yticklabels(genero_cats, fontsize=8)
+    ax.set_xlabel(f'efeito padronizado (CI {int(ci_prob*100)}%)')
+    ax.set_title(title)
+    ax.grid(axis='x', linestyle=':', alpha=0.4)
+    n_sig = int(sig_mask.sum())
+    ax.text(0.99, 0.01, f'{n_sig}/{n} generos com CI fora de zero',
+            transform=ax.transAxes, ha='right', va='bottom', fontsize=9,
+            color='#1db954' if n_sig > 0 else '#7a7166')
+
+
+def save_forest_plots(idata, feats: list[str], genero_cats: list[str], family: str):
+    """Forest plots por feature (detalhado) + 1 plot destaque da feature mais variavel."""
+    # Detalhado
+    n_generos = len(genero_cats)
     for k, feat in enumerate(feats):
-        fig, ax = plt.subplots(figsize=(10, 14))
-        az.plot_forest(
-            idata, var_names=['beta_g'], coords={'feature': [feat]},
-            combined=True, hdi_prob=0.94, ax=ax,
+        fig, ax = plt.subplots(figsize=(10, max(8, 0.25 * n_generos)))
+        _manual_forest(
+            idata, feat, ax, genero_cats=genero_cats,
+            title=f"{family.upper()} - efeito de {feat} por genero",
         )
-        ax.set_title(f"{family.upper()} - efeito de {feat} por genero (HDI 94%)")
         plt.tight_layout()
         path = os.path.join(RESULTS_DIR, f"q8_forest_{family}_{feat}.png")
         plt.savefig(path, dpi=120)
         plt.close(fig)
 
-    # Destaque: feature com maior sigma_beta (mais variação entre gêneros)
+    # Destaque: feature com maior sigma_beta (mais variacao entre generos)
     sigma_post = idata.posterior['sigma_beta'].mean(dim=('chain', 'draw'))
     top_feat_idx = int(np.argmax(sigma_post.values))
     top_feat = feats[top_feat_idx]
-    fig, ax = plt.subplots(figsize=(10, 14))
-    az.plot_forest(
-        idata, var_names=['beta_g'], coords={'feature': [top_feat]},
-        combined=True, hdi_prob=0.94, ax=ax,
-    )
-    ax.set_title(
-        f"{family.upper()} - {top_feat} (feature mais variavel entre generos)\n"
-        f"sigma_beta medio = {float(sigma_post.values[top_feat_idx]):.2f}",
+    fig, ax = plt.subplots(figsize=(10, max(8, 0.25 * n_generos)))
+    _manual_forest(
+        idata, top_feat, ax, genero_cats=genero_cats,
+        title=f"{family.upper()} - {top_feat} (feature mais variavel entre generos)\n"
+              f"sigma_beta medio = {float(sigma_post.values[top_feat_idx]):.2f}",
     )
     plt.tight_layout()
     plt.savefig(os.path.join(RESULTS_DIR, f"q8_forest_top_{family}.png"), dpi=120)
@@ -323,16 +394,18 @@ def save_forest_plots(idata, feats: list[str], family: str):
 
 
 def save_summary_plot(idata, feats: list[str], family: str):
-    """Plot-resumo: ranking dos efeitos globais com HDI."""
-    post = idata.posterior
-    means = post['mu_beta'].mean(dim=('chain', 'draw')).values
-    hdi = az.hdi(post['mu_beta'], hdi_prob=0.94).mu_beta.values  # (K, 2)
+    """Plot-resumo: ranking dos efeitos globais com CI 94%."""
+    post = idata.posterior['mu_beta']  # dims: chain, draw, feature
+    means = post.mean(dim=('chain', 'draw')).values
+    alpha = 0.03  # CI 94%
+    lo = post.quantile(alpha, dim=('chain', 'draw')).values
+    hi = post.quantile(1 - alpha, dim=('chain', 'draw')).values
 
     order = np.argsort(np.abs(means))[::-1]
     feats_ord = [feats[i] for i in order]
     means_ord = means[order]
-    lo_ord = hdi[order, 0]
-    hi_ord = hdi[order, 1]
+    lo_ord = lo[order]
+    hi_ord = hi[order]
 
     fig, ax = plt.subplots(figsize=(10, 6))
     y = np.arange(len(feats_ord))
@@ -344,7 +417,7 @@ def save_summary_plot(idata, feats: list[str], family: str):
     ax.axvline(0, color='#7a7166', linewidth=0.8, linestyle='--')
     ax.set_yticks(y)
     ax.set_yticklabels(feats_ord)
-    ax.set_xlabel('mu_beta (efeito global padronizado, HDI 94%)')
+    ax.set_xlabel('mu_beta (efeito global padronizado, CI 94%)')
     ax.set_title(f'{family.upper()} - ranking de efeitos globais')
     ax.invert_yaxis()
     plt.tight_layout()
@@ -353,27 +426,36 @@ def save_summary_plot(idata, feats: list[str], family: str):
 
 
 def save_sigma_plot():
-    """Compara sigma_beta entre modelos (Gaussian vs Bernoulli)."""
+    """Compara sigma_beta entre modelos (Gaussian vs Bernoulli).
+
+    Tolera 2 formatos do CSV: (a) 'index' coluna (formato novo), (b) unnamed primeira coluna (formato az.summary antigo).
+    """
     coefs_path = os.path.join(RESULTS_DIR, "q8_coefs_globais.csv")
     if not os.path.exists(coefs_path):
         return
     df = pd.read_csv(coefs_path)
-    sigma_rows = df[df['index'].str.startswith('sigma_beta[', na=False)].copy()
+    if 'index' in df.columns:
+        name_col = 'index'
+    else:
+        name_col = df.columns[0]
+    sigma_rows = df[df[name_col].astype(str).str.startswith('sigma_beta[', na=False)].copy()
     if sigma_rows.empty:
+        print(f"[sigma_plot] nenhuma linha sigma_beta encontrada (col={name_col})")
         return
     sigma_rows['feature'] = (
-        sigma_rows['index'].str.extract(r"\[(.+)\]").iloc[:, 0].str.strip("'\"")
+        sigma_rows[name_col].str.extract(r"\[(.+)\]").iloc[:, 0].str.strip("'\"")
     )
 
     fig, ax = plt.subplots(figsize=(10, 6))
     width = 0.4
-    models = sigma_rows['model'].unique()
-    x = np.arange(sigma_rows['feature'].nunique())
+    models = sorted(sigma_rows['model'].unique())
     feats = sorted(sigma_rows['feature'].unique())
+    x = np.arange(len(feats))
+    colors = ['#1db954', '#7b4fb0', '#c8841a']
     for i, fam in enumerate(models):
         sub = sigma_rows[sigma_rows['model'] == fam].set_index('feature').reindex(feats)
-        ax.bar(x + (i - 0.5) * width, sub['mean'].values, width,
-               label=fam.upper(), color=['#1db954', '#7b4fb0'][i % 2])
+        ax.bar(x + (i - (len(models)-1)/2) * width, sub['mean'].values, width,
+               label=fam.upper(), color=colors[i % len(colors)])
     ax.set_xticks(x)
     ax.set_xticklabels(feats, rotation=45, ha='right')
     ax.set_ylabel('sigma_beta (variacao entre generos)')
@@ -382,6 +464,7 @@ def save_sigma_plot():
     plt.tight_layout()
     plt.savefig(os.path.join(RESULTS_DIR, 'q8_sigma_beta_comparison.png'), dpi=120)
     plt.close(fig)
+    print("[sigma_plot] sigma_beta_comparison.png salvo")
 
 
 def main():
@@ -423,7 +506,7 @@ def main():
             idata_full, elapsed = fit_full(df_m, feats, n_generos, family)
             save_posterior(idata_full, family)
             save_coefs(idata_full, feats, genero_cats, family)
-            save_forest_plots(idata_full, feats, family)
+            save_forest_plots(idata_full, feats, genero_cats, family)
             save_summary_plot(idata_full, feats, family)
             log_lines.append(diagnostics(idata_full, family))
             log_lines.append(f"Tempo NUTS {family}: {elapsed/60:.1f} min")

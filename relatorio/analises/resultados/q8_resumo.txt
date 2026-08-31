@@ -1,0 +1,25 @@
+
+=== Diagnóstico bernoulli_spike ===
+                                mean     sd eti89_lb eti89_ub ess_bulk ess_tail r_hat mcse_mean  mcse_sd
+mu_alpha                      -1.491  0.019     -1.5     -1.5      507      427   nan   0.00085  0.00058
+sigma_alpha                    1.703  0.042      1.6      1.8      482      412   nan    0.0019   0.0015
+mu_beta[danceability]          0.142   0.02     0.11     0.17      481      433   nan   0.00091  0.00065
+mu_beta[energy]               -0.132   0.02    -0.16     -0.1      420      434   nan   0.00095  0.00066
+mu_beta[loudness]              0.173  0.022     0.14     0.21      510      448   nan   0.00098  0.00063
+mu_beta[speechiness]          -0.087  0.018    -0.12   -0.056      498      489   nan   0.00082   0.0006
+mu_beta[acousticness]         -0.163  0.019    -0.19    -0.13      492      432   nan   0.00085  0.00061
+mu_beta[instrumentalness]     -0.049  0.022   -0.084   -0.013      513      512   nan   0.00099  0.00067
+mu_beta[liveness]             -0.108   0.02    -0.14   -0.076      524      411   nan   0.00086  0.00059
+mu_beta[valence]              -0.186  0.021    -0.22    -0.15      591      461   nan   0.00087  0.00057
+mu_beta[tempo]                 0.034  0.021    0.002    0.066      475      379   nan   0.00095  0.00068
+mu_beta[explicit]              0.078  0.018    0.051     0.11      323      341   nan   0.00098  0.00068
+sigma_beta[danceability]       0.275  0.021     0.24     0.31      556      376   nan   0.00087  0.00064
+sigma_beta[energy]             0.039  0.012    0.023    0.059      441      373   nan   0.00058  0.00062
+sigma_beta[loudness]           0.345  0.019     0.32     0.38      416      403   nan   0.00091  0.00066
+sigma_beta[speechiness]        0.135  0.019     0.11     0.17      500      380   nan   0.00087  0.00062
+sigma_beta[acousticness]       0.196  0.021     0.17     0.23      472      503   nan   0.00099  0.00068
+sigma_beta[instrumentalness]   0.213  0.021     0.18     0.25      511      515   nan   0.00093  0.00064
+sigma_beta[liveness]           0.093  0.017    0.068     0.12      474      462   nan   0.00078  0.00065
+sigma_beta[valence]            0.168  0.023     0.13     0.21      471      449   nan     0.001  0.00081
+sigma_beta[tempo]               0.06  0.016    0.039    0.087      468      449   nan   0.00075  0.00069
+sigma_beta[explicit]           0.191  0.017     0.16     0.22      438      484   nan   0.00079  0.00052
