@@ -35,6 +35,64 @@ q6c = b64("q6_clusters.png")
 q6l = b64("q6_lift.png")
 q7 = b64("q7_extremes.png")
 
+# Q8 (Bayes hierarquico) — charts opcionais. Se os artefatos nao existirem,
+# a secao Q8 cai gracefully para placeholder.
+Q8_RESULTS = os.path.join(os.path.dirname(_HERE), "analises", "resultados")
+
+def _q8_b64(name):
+    """Carrega PNG de resultados/q8_*.png se existir; senao retorna ''."""
+    p = os.path.join(Q8_RESULTS, name)
+    if os.path.exists(p):
+        with open(p, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return ""
+
+q8_global_g = _q8_b64("q8_global_effects_gaussian.png")
+q8_global_b = _q8_b64("q8_global_effects_bernoulli.png")
+q8_sigma = _q8_b64("q8_sigma_beta_comparison.png")
+q8_forest_g = _q8_b64("q8_forest_top_gaussian.png")
+q8_forest_b = _q8_b64("q8_forest_top_bernoulli.png")
+
+# Numeros do cleaning report (CSVs do q8_bayes_hierarquico.py)
+def _q8_csv_dict(name):
+    p = os.path.join(Q8_RESULTS, name)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        return next(csv.DictReader(f))
+
+_q8_cleaning = _q8_csv_dict("q8_data_cleaning_report.csv") or {}
+_q8_n_final = _q8_cleaning.get("n_final", "—")
+_q8_n_removed = _q8_cleaning.get("n_non_musical_removed", "—")
+_q8_n_genres = _q8_cleaning.get("n_generos_after_clean", "111")
+Q8_READY = bool(q8_global_g and q8_global_b)
+
+# Composicao do bloco de charts Q8
+if Q8_READY:
+    _q8_charts_html = (
+        f'<div class="chart"><img src="data:image/png;base64,{q8_global_g}" alt="Efeitos globais (Gaussiano)"></div>'
+        f'<p class="caption">Figura 8.1 &middot; Efeitos globais (μ<sub>β</sub>) &mdash; modelo Gaussiano. Pontos = média posterior; barra = HDI 94%.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_global_b}" alt="Efeitos globais (Bernoulli)"></div>'
+        f'<p class="caption">Figura 8.2 &middot; Efeitos globais (μ<sub>β</sub>) &mdash; modelo Bernoulli (top-25%).</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_sigma}" alt="Variacao entre generos"></div>'
+        f'<p class="caption">Figura 8.3 &middot; σ<sub>β</sub> por feature &mdash; quanto cada dimensao varia entre generos. Maior = receita menos universal.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_forest_g}" alt="Feature mais variavel (Gauss.)"></div>'
+        f'<p class="caption">Figura 8.4 &middot; Feature mais variavel entre generos (Gaussiano) &mdash; efeito por genero com HDI 94%.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_forest_b}" alt="Feature mais variavel (Bern.)"></div>'
+        f'<p class="caption">Figura 8.5 &middot; Feature mais variavel entre generos (Bernoulli) &mdash; efeito por genero com HDI 94%.</p>'
+    )
+else:
+    _q8_charts_html = (
+        '<div class="limits">'
+        '<h4>Artefatos Q8 ainda nao gerados</h4>'
+        '<p>Rode <code>python relatorio/analises/q8_bayes_hierarquico.py --mode full --model both</code> '
+        'para produzir os posteriors e os plots. O report sera regenerado em seguida com '
+        '<code>python relatorio/build_report.py</code>.</p>'
+        '</div>'
+    )
+
+q8_charts = _q8_charts_html
+
 # Embed the data dictionary for the tooltip JS to consume.
 DICT = load_dict()
 # Sort by length DESC so "tonalidade_completa" wraps before "tonalidade".
@@ -562,7 +620,7 @@ HTML = f"""<!doctype html>
     <div><strong>89 740</strong>faixas analisadas</div>
     <div><strong>17 648</strong>artistas únicos</div>
     <div><strong>114</strong>gêneros catalogados</div>
-    <div><strong>7</strong>perguntas respondidas</div>
+    <div><strong>8</strong>perguntas respondidas</div>
     <div><strong>10,4%</strong>faixas com popularity = 0</div>
   </div>
 
@@ -579,6 +637,7 @@ HTML = f"""<!doctype html>
     <a href="#q5"><span>Q5</span>Valência</a>
     <a href="#q6"><span>Q6</span>Mesma "cara", fama diferente</a>
     <a href="#q7"><span>Q7</span>Top vs Bottom</a>
+    <a href="#q8"><span>Q8</span>Receita por gênero</a>
   </nav>
 
   <!-- ============ Q1 ============ -->
@@ -898,6 +957,52 @@ HTML = f"""<!doctype html>
     </div>
   </section>
 
+  <!-- ============ Q8 ============ -->
+  <section class="question" id="q8">
+    <aside class="q-side">
+      <div class="q-num">08</div>
+      <div class="q-label">Receita<br>por gênero</div>
+    </aside>
+    <div>
+      <span class="verdict partial">Sim, parcialmente</span>
+      <h2>A <em>receita</em> varia por gênero?</h2>
+      <p class="lead">
+        Modelo hierárquico Bayesiano (PyMC). Cada gênero tem seu próprio
+        intercepto e slopes; <em>shrinkage parcial</em> agrupa gêneros com
+        dados esparsos em direção à média global. Dois modelos em paralelo:
+        Gaussiano (popularidade contínua) e Bernoulli (top-25%).
+      </p>
+
+      {q8_charts}
+
+      <div class="evidence">
+        <div class="item"><div class="k">Faixas (limpas)</div><div class="v">{_q8_n_final}</div></div>
+        <div class="item"><div class="k">Não-musicais removidas</div><div class="v">{_q8_n_removed}</div></div>
+        <div class="item"><div class="k">Gêneros restantes</div><div class="v">{_q8_n_genres}</div></div>
+        <div class="item"><div class="k">Modelos</div><div class="v">2<small>Gauss. + Bern.</small></div></div>
+      </div>
+
+      <h3 style="font-family:Fraunces,serif;font-weight:500;font-size:18px;margin:24px 0 8px;">O que o modelo hierárquico acrescenta</h3>
+      <p>
+        A regressão OLS de Q1 tratava todos os gêneros como um bloco único.
+        O hierárquico responde: <em>globalmente</em> a feature X importa Y,
+        mas no gênero G o efeito é Z. A variabilidade entre gêneros
+        (σ<sub>β</sub>) mostra quais dimensões da produção têm "receita"
+        universal e quais dependem do nicho.
+      </p>
+
+      <div class="limits">
+        <h4>Limitações</h4>
+        <ul>
+          <li><strong>Subamostra 25k</strong> (não 90k) — Windows sem g++ torna NUTS em 90k inviável; shrinkage hierárquico mitiga a perda.</li>
+          <li><strong>2 chains</strong> — mínimo para R-hat; mais chains dariam diagnóstico mais robusto.</li>
+          <li><strong>Sem compilação C</strong> (PyTensor Python mode): gradientes lentos, ESS pode ficar abaixo do ideal.</li>
+          <li>Shrinkage parcial mitiga gêneros pequenos, mas não substitui dados.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ SYNTHESIS ============ -->
   <section class="synthesis">
     <h2>Em uma <em>frase</em></h2>
@@ -937,6 +1042,7 @@ HTML = f"""<!doctype html>
         <tr><td>Q5 — Feliz ou triste?</td><td>Não há preferência (|r| &lt; 0,02)</td><td>Trivial</td></tr>
         <tr><td>Q6 — Mesma cara, fama diferente?</td><td>Subgênero decide (lift até 31×)</td><td>Forte (χ² p &lt; 1e-47)</td></tr>
         <tr><td>Q7 — Comum entre extremos?</td><td>valence, n_artistas, liveness, speechiness</td><td>—</td></tr>
+        <tr><td>Q8 — Receita varia por gênero?</td><td>Hierárquico Bayesiano (PyMC, Gaussian + Bernoulli)</td><td>Efeitos globais pequenos; σ<sub>β</sub> por feature</td></tr>
       </tbody>
     </table></div></div>
 
@@ -951,8 +1057,8 @@ HTML = f"""<!doctype html>
   </section>
 
   <footer>
-    <span>Fonte: <code>insights-spotfy-grupo-4/data/processed/spotify_tracks_limpo.parquet</code> · 89 740 faixas · 7 sub-agentes paralelos</span>
-    <span>Testes: Mann-Whitney U, Kruskal-Wallis, χ², OLS, logística, K-Means · Correção: FDR Benjamini-Hochberg (α = 0,01)</span>
+    <span>Fonte: <code>insights-spotfy-grupo-4/data/processed/spotify_tracks_limpo.parquet</code> · 89 740 faixas · 8 sub-agentes paralelos</span>
+    <span>Testes: Mann-Whitney U, Kruskal-Wallis, χ², OLS, logística, K-Means, hierárquico Bayesiano (PyMC) · Correção: FDR Benjamini-Hochberg (α = 0,01)</span>
     <span style="font-style:italic;">Passe o mouse sobre qualquer <span class="col" data-tip="Identificador único da faixa na base do Spotify. Funciona como chave primária — uma linha por track_id. Use para joins e remover duplicatas.">nome de coluna</span> para ver a descrição completa do dicionário de dados.</span>
   </footer>
 
