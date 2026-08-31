@@ -1,14 +1,28 @@
-"""Build final HTML report with embedded charts."""
+"""Build final HTML report with embedded charts and column tooltips."""
 import base64
+import csv
+import html
+import json
 import os
 
-OUT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\charts"
-REPORT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\report.html"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(_HERE, "charts")
+REPORT = os.path.join(_HERE, "report.html")
+DICT_CSV = os.path.join(_HERE, "dicionario_dados.csv")
 
 
 def b64(name):
     with open(os.path.join(OUT, name), "rb") as f:
         return base64.b64encode(f.read()).decode()
+
+
+def load_dict():
+    """Read dicionario_dados.csv into {coluna: descricao} dict, longest names first."""
+    out = {}
+    with open(DICT_CSV, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            out[row["coluna"]] = row["descricao"]
+    return out
 
 
 hero = b64("hero_dist.png")
@@ -20,6 +34,12 @@ q5 = b64("q5_valence.png")
 q6c = b64("q6_clusters.png")
 q6l = b64("q6_lift.png")
 q7 = b64("q7_extremes.png")
+
+# Embed the data dictionary for the tooltip JS to consume.
+DICT = load_dict()
+# Sort by length DESC so "tonalidade_completa" wraps before "tonalidade".
+DICT_SORTED = dict(sorted(DICT.items(), key=lambda kv: -len(kv[0])))
+DICT_JSON = json.dumps(DICT_SORTED, ensure_ascii=False)
 
 HTML = f"""<!doctype html>
 <html lang="pt-BR">
@@ -435,6 +455,94 @@ HTML = f"""<!doctype html>
     .chart.two {{ grid-template-columns: 1fr; }}
     .lede {{ font-size: 16px; }}
   }}
+
+  /* ---------- TOOLTIPS PARA COLUNAS ---------- */
+  .col {{
+    border-bottom: 1px dotted var(--accent);
+    cursor: help;
+    position: relative;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    padding: 0 1px;
+  }}
+  .col:hover {{
+    color: var(--accent-2);
+    background: var(--tint-green);
+  }}
+  /* Hide native title attribute by intercepting */
+  .col[data-tip]::after {{
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(4px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: "Inter", sans-serif;
+    font-size: 12.5px;
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: 0;
+    font-style: normal;
+    width: max-content;
+    max-width: 320px;
+    min-width: 180px;
+    text-align: left;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 1000;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4);
+  }}
+  .col[data-tip]::before {{
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%) translateY(0);
+    border: 6px solid transparent;
+    border-top-color: var(--ink);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1000;
+  }}
+  .col[data-tip]:hover::after,
+  .col[data-tip]:focus::after {{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }}
+  .col[data-tip]:hover::before,
+  .col[data-tip]:focus::before {{
+    opacity: 1;
+  }}
+  /* Edge handling: keep tooltips within viewport on the rightmost column */
+  .col[data-tip][data-edge="right"]::after {{
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(4px);
+  }}
+  .col[data-tip][data-edge="right"]:hover::after {{
+    transform: translateX(0) translateY(0);
+  }}
+  .col[data-tip][data-edge="right"]::before {{
+    left: auto;
+    right: 12px;
+    transform: translateX(0) translateY(0);
+  }}
+  @media (max-width: 760px) {{
+    .col[data-tip]::after {{
+      max-width: 240px;
+      font-size: 12px;
+    }}
+  }}
+  @media (prefers-reduced-motion: reduce) {{
+    .col[data-tip]::after,
+    .col[data-tip]::before {{ transition: none; }}
+  }}
 </style>
 </head>
 <body>
@@ -845,9 +953,107 @@ HTML = f"""<!doctype html>
   <footer>
     <span>Fonte: <code>insights-spotfy-grupo-4/data/processed/spotify_tracks_limpo.parquet</code> · 89 740 faixas · 7 sub-agentes paralelos</span>
     <span>Testes: Mann-Whitney U, Kruskal-Wallis, χ², OLS, logística, K-Means · Correção: FDR Benjamini-Hochberg (α = 0,01)</span>
+    <span style="font-style:italic;">Passe o mouse sobre qualquer <span class="col" data-tip="Identificador único da faixa na base do Spotify. Funciona como chave primária — uma linha por track_id. Use para joins e remover duplicatas.">nome de coluna</span> para ver a descrição completa do dicionário de dados.</span>
   </footer>
 
 </div>
+
+<script>
+  // Data dictionary injected from relatorio/dicionario_dados.csv at build time.
+  // Keys sorted by length DESC so "tonalidade_completa" wins over "tonalidade".
+  const COL_TIPS = {DICT_JSON};
+
+  // Skip these tags when scanning for column names.
+  const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "CODE"]);
+
+  function escapeReg(s) {{
+    return s.replace(/[.*+?^${{}}()|[\\]\\\\]/g, "\\$&");
+  }}
+
+  function wrapTextNode(node) {{
+    if (!node.nodeValue) return;
+    const text = node.nodeValue;
+    // Find earliest match across all column names.
+    let best = null; // {{ start, end, name }}
+    for (const name of Object.keys(COL_TIPS)) {{
+      const re = new RegExp("(^|[^A-Za-z0-9_])(" + escapeReg(name) + ")(?![A-Za-z0-9_])", "gi");
+      let m;
+      while ((m = re.exec(text)) !== null) {{
+        const start = m.index + m[1].length;
+        if (best === null || start < best.start) {{
+          best = {{ start, end: start + m[2].length, name }};
+        }}
+        break; // only need the first occurrence per name
+      }}
+    }}
+    if (!best) return;
+    const before = text.slice(0, best.start);
+    const hit = text.slice(best.start, best.end);
+    const after = text.slice(best.end);
+    const tip = COL_TIPS[best.name]
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+    const span = document.createElement("span");
+    span.className = "col";
+    span.setAttribute("data-tip", tip);
+    span.setAttribute("tabindex", "0");
+    span.textContent = hit;
+    const frag = document.createDocumentFragment();
+    if (before) frag.appendChild(document.createTextNode(before));
+    frag.appendChild(span);
+    if (after) frag.appendChild(document.createTextNode(after));
+    node.parentNode.replaceChild(frag, node);
+    // The text after the match may itself contain matches — recurse.
+    if (after) {{
+      const afterNode = frag.lastChild;
+      wrapTextNode(afterNode);
+    }}
+  }}
+
+  function processNode(node) {{
+    // TreeWalker: text nodes only, skip SKIP_TAGS.
+    const walker = document.createTreeWalker(
+      node,
+      NodeFilter.SHOW_TEXT,
+      {{
+        acceptNode: (n) => {{
+          if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          let p = n.parentElement;
+          while (p) {{
+            if (SKIP_TAGS.has(p.tagName)) return NodeFilter.FILTER_REJECT;
+            if (p.classList && p.classList.contains("col")) return NodeFilter.FILTER_REJECT;
+            p = p.parentElement;
+          }}
+          return NodeFilter.FILTER_ACCEPT;
+        }},
+      }}
+    );
+    // Collect first (TreeWalker is live and re-walking after edits gets messy).
+    const batch = [];
+    let n;
+    while ((n = walker.nextNode())) batch.push(n);
+    for (const t of batch) wrapTextNode(t);
+  }}
+
+  function markEdgeCases() {{
+    // Flag tooltips near the right viewport edge so they don't overflow.
+    document.querySelectorAll(".col[data-tip]").forEach((el) => {{
+      const r = el.getBoundingClientRect();
+      if (r.right > window.innerWidth - 220) el.setAttribute("data-edge", "right");
+    }});
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", () => {{
+      processNode(document.body);
+      requestAnimationFrame(markEdgeCases);
+    }});
+  }} else {{
+    processNode(document.body);
+    requestAnimationFrame(markEdgeCases);
+  }}
+  window.addEventListener("resize", markEdgeCases);
+</script>
 </body>
 </html>
 """

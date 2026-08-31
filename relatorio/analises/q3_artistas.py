@@ -1,12 +1,15 @@
 """
 Q3 Analysis: Characteristics of the most popular artists.
 """
+import os
+
 import pandas as pd
 import numpy as np
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
 PARQUET_PATH = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\insights-spotfy-grupo-4\data\processed\spotify_tracks_limpo.parquet"
+RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resultados")
 
 # 1. Load and prepare
 df = pd.read_parquet(PARQUET_PATH)
@@ -202,14 +205,14 @@ print(f"\nChi-square: chi2={chi2:.4f}, dof={dof}, p={p_chi:.6e}")
 print(f"Expected frequencies: min={expected.min():.2f}, any<5: {(expected<5).any()}")
 
 # 7. Save results
-results_df.to_csv(r'C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\q3_results_full.csv', index=False)
-sig.to_csv(r'C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\q3_results_significant.csv', index=False)
+results_df.to_csv(os.path.join(RESULTS, 'q3_results_full.csv'), index=False)
+sig.to_csv(os.path.join(RESULTS, 'q3_results_significant.csv'), index=False)
 
 # Save full top/bottom artist lists (with summary) for the report
 top_p90_sorted = top_p90.sort_values('mean_popularity', ascending=False)
 bot_p10_sorted = bottom_p10.sort_values('mean_popularity', ascending=True)
-top_p90_sorted.to_csv(r'C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\q3_top10pct_artists.csv', index=False)
-bot_p10_sorted.to_csv(r'C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\q3_bottom10pct_artists.csv', index=False)
+top_p90_sorted.to_csv(os.path.join(RESULTS, 'q3_top10pct_artists.csv'), index=False)
+bot_p10_sorted.to_csv(os.path.join(RESULTS, 'q3_bottom10pct_artists.csv'), index=False)
 
 # 8. Summary stats for the report
 print("\n" + "="*80)
