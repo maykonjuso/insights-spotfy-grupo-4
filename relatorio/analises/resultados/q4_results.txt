@@ -1,0 +1,21 @@
+N=89740
+Pearson r=0.0136 p=4.560e-05
+Spearman rho=-0.0158 p=2.166e-06
+Kruskal-Wallis H=846.2988 p=3.933e-183
+Pair Q1 vs Q2: U=224874064 p_raw=3.292e-85 p_adj=6.584e-85
+Pair Q1 vs Q3: U=229836067 p_raw=4.613e-60 p_adj=6.919e-60
+Pair Q1 vs Q4: U=254570528 p_raw=1.673e-02 p_adj=1.673e-02
+Pair Q2 vs Q3: U=256546313 p_raw=1.012e-03 p_adj=1.214e-03
+Pair Q2 vs Q4: U=284589000 p_raw=1.289e-132 p_adj=7.736e-132
+Pair Q3 vs Q4: U=280031797 p_raw=3.071e-95 p_adj=9.212e-95
+Logistic energy: beta=-0.3857 SE=0.0151 z=-25.541 p=0.000e+00
+Logistic danceability: beta=+0.1712 SE=0.0092 z=+18.520 p=0.000e+00
+Logistic valence: beta=-0.1809 SE=0.0094 z=-19.241 p=0.000e+00
+Logistic loudness: beta=+0.2687 SE=0.0133 z=+20.158 p=0.000e+00
+Logistic acousticness: beta=-0.1958 SE=0.0119 z=-16.507 p=0.000e+00
+Intercept: -1.1184
+Quartile threshold 75pct: 49.0
+Q1 energy=[0.0000,0.4570] n=22447 mean=31.443 median=30.0
+Q2 energy=[0.4580,0.6760] n=22425 mean=35.353 median=38.0
+Q3 energy=[0.6770,0.8530] n=22478 mean=34.807 median=36.0
+Q4 energy=[0.8540,1.0000] n=22390 mean=31.223 median=28.0

@@ -2,8 +2,9 @@
 import base64
 import os
 
-OUT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\charts"
-REPORT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\report.html"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(_HERE, "charts")
+REPORT = os.path.join(_HERE, "report.html")
 
 
 def b64(name):

@@ -5,19 +5,23 @@ Análise de faixas do Spotify (114.000 registros, 114 gêneros, com features de 
 ## Estrutura
 
 ```
-dataset2(in).csv                       # dados brutos (entrada)
-notebooks/01_limpeza_dataset.ipynb     # diagnóstico, limpeza e geração do dataset
-notebooks/02_eda_limpo.ipynb           # análise exploratória de dados aprofundada
-notebooks/build_eda.py                 # script gerador do notebook 02
-notebooks/Challenge_0_Spotify_Data_G4.ipynb  # notebook final do desafio
-data/processed/                        # saídas geradas (não versionadas)
-relatorio/                             # relatório HTML + scripts + gráficos
-  report.html                          # relatório visual compilado (abrir no navegador)
+dataset2(in).csv                       # dados brutos (entrada) — âncora para resolver a raiz
+data/processed/                        # saídas do notebook 01 (não versionado)
+notebooks/
+  Challenge_0_Spotify_Data_G4.ipynb    # EDA preliminar sobre o dataset bruto
+  01_limpeza_dataset.ipynb             # diagnóstico, limpeza e consolidação -> data/processed/
+  02_eda_limpo.ipynb                   # EDA aprofundada sobre o dataset limpo
+  build_eda.py                         # script gerador do notebook 02
+relatorio/
   gen_charts.py                        # gera os 9 gráficos a partir do parquet limpo
-  build_report.py                      # monta o HTML embedando os gráficos
+  build_report.py                      # monta report.html embutindo os gráficos (base64)
+  dicionario_dados.csv                 # descrições das colunas (tooltips do relatório)
+  report.html                          # relatório visual compilado (abrir no navegador)
   charts/                              # PNGs usados no relatório
-  analysis_q*.py / analise_q*.py       # scripts por pergunta (Q2, Q3, Q5, Q6, Q7)
-  q3_*.csv                             # tabelas auxiliares (artistas P90/P10, testes)
+  analises/                            # análises estatísticas, uma por pergunta
+    q2_generos.py  q3_artistas.py  q4_energia.py
+    q5_valencia.py  q6_clusters.py  q7_extremos.py
+    resultados/                        # saídas dos scripts (CSV / JSON / TXT / log)
 ```
 
 ## Como rodar
@@ -83,6 +87,14 @@ Para regenerar:
 ```bash
 .venv/bin/python relatorio/gen_charts.py    # gera relatorio/charts/*.png
 .venv/bin/python relatorio/build_report.py  # recompõe relatorio/report.html
+```
+
+As análises estatísticas por pergunta ficam em `relatorio/analises/`. Cada script imprime
+o resultado no stdout; `q3_artistas.py`, `q4_energia.py` e `q6_clusters.py` também gravam
+tabelas em `relatorio/analises/resultados/`.
+
+```bash
+.venv/bin/python relatorio/analises/q2_generos.py
 ```
 
 Abrir `relatorio/report.html` em qualquer navegador moderno (light/dark toggle no canto

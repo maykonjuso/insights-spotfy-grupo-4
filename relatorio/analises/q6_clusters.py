@@ -2,6 +2,7 @@
 Q6 Analysis (final) — Why do some artists have the same audio features as famous
 artists but are not famous themselves?
 """
+import os
 import pandas as pd
 import numpy as np
 import json
@@ -284,6 +285,7 @@ out = {
     'centroids': conv(centroids.round(4).to_dict()),
     'cluster_results': conv(results_by_cluster),
 }
-with open(r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\insights-spotfy-grupo-4\analysis_q6_results.json", "w") as f:
+_q6_out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resultados", "q6_results.json")
+with open(_q6_out, "w", encoding="utf-8") as f:
     json.dump(out, f, indent=2, ensure_ascii=False, default=str)
-print("\nResultados salvos em analysis_q6_results.json")
+print("\nResultados salvos em", _q6_out)
