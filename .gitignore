@@ -7,8 +7,5 @@ __pycache__/
 # Dados gerados pelo notebook (reproduziveis a partir do CSV bruto)
 data/processed/
 
-# Q8 - posteriors PyMC (grandes, regeneraveis via q8_bayes_hierarquico.py)
-relatorio/analises/resultados/q8_model_*.pkl
-
 # Jupyter
 .ipynb_checkpoints/
