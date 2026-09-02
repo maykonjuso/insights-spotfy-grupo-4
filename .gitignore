@@ -32,3 +32,9 @@ data/gtzan/
 
 # Binario WASM copiado da essentia.js no pre-build
 public/essentia/
+
+# K=11 / Q9 drop-one: arrays de log-likelihood por sample (~2.7 GB, regeneráveis)
+q9_*.npy
+
+# Q9 posteriors NetCDF (~1.1 GB, regeneráveis rodando o notebook)
+q9_*.nc

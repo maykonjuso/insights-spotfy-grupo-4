@@ -1,0 +1,79 @@
+{
+  "stats": {
+    "extended": {
+      "n_obs": 74925,
+      "n_draws": 2000,
+      "elpd_lppd_total": -298502.9026135957,
+      "elpd_lppd_mean": -3.9840227242388484,
+      "se_lppd_total": 296.90156763825433,
+      "lppd_per_obs_std": 1.0846737122022678
+    },
+    "drop_NO_GENRE_MULTI": {
+      "n_obs": 50000,
+      "n_draws": 1500,
+      "elpd_lppd_total": -210123.8980593014,
+      "elpd_lppd_mean": -4.202477961186028,
+      "se_lppd_total": 212.50520014548775,
+      "lppd_per_obs_std": 0.9503521461950176
+    },
+    "drop_NO_KEY": {
+      "n_obs": 50000,
+      "n_draws": 1500,
+      "elpd_lppd_total": -210146.54165332796,
+      "elpd_lppd_mean": -4.202930833066559,
+      "se_lppd_total": 213.22135937301854,
+      "lppd_per_obs_std": 0.9535549076259627
+    },
+    "drop_NO_KEY_SIN": {
+      "n_obs": 50000,
+      "n_draws": 1500,
+      "elpd_lppd_total": -210118.65424650194,
+      "elpd_lppd_mean": -4.202373084930039,
+      "se_lppd_total": 213.0496313457461,
+      "lppd_per_obs_std": 0.9527869165407165
+    },
+    "drop_NO_MODE": {
+      "n_obs": 50000,
+      "n_draws": 1500,
+      "elpd_lppd_total": -210180.5069376755,
+      "elpd_lppd_mean": -4.20361013875351,
+      "se_lppd_total": 212.69503334391376,
+      "lppd_per_obs_std": 0.9512011060671511
+    },
+    "drop_NO_TIME_SIG": {
+      "n_obs": 50000,
+      "n_draws": 1500,
+      "elpd_lppd_total": -210134.8082541752,
+      "elpd_lppd_mean": -4.202696165083504,
+      "se_lppd_total": 213.03462159911146,
+      "lppd_per_obs_std": 0.9527197909131163
+    }
+  },
+  "deltas": {
+    "drop_NO_MODE": {
+      "per_obs": -0.2195874145146619,
+      "total": 88322.39567592021,
+      "mean_elpd_lppd": -4.20361013875351
+    },
+    "drop_NO_KEY": {
+      "per_obs": -0.21890810882771072,
+      "total": 88356.36096026775,
+      "mean_elpd_lppd": -4.202930833066559
+    },
+    "drop_NO_TIME_SIG": {
+      "per_obs": -0.21867344084465534,
+      "total": 88368.0943594205,
+      "mean_elpd_lppd": -4.202696165083504
+    },
+    "drop_NO_GENRE_MULTI": {
+      "per_obs": -0.21845523694717928,
+      "total": 88379.00455429431,
+      "mean_elpd_lppd": -4.202477961186028
+    },
+    "drop_NO_KEY_SIN": {
+      "per_obs": -0.2183503606911903,
+      "total": 88384.24836709377,
+      "mean_elpd_lppd": -4.202373084930039
+    }
+  }
+}

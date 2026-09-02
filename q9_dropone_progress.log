@@ -1,0 +1,47 @@
+[extended] start
+C:\Users\tito\AppData\Local\Programs\Python\Python313\Lib\site-packages\arviz_stats\loo\loo_helper.py:1146: UserWarning: Estimated shape parameter of Pareto distribution is greater than 0.70 for one or more samples. You should consider using a more robust model, this is because importance sampling is less likely to work well if the marginal posterior and LOO posterior are very different. This is more likely to happen with a non-robust model and highly influential observations.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[extended] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_GENRE_MULTI] start
+C:\Users\tito\AppData\Local\Programs\Python\Python313\Lib\site-packages\arviz_stats\loo\loo_helper.py:1146: UserWarning: Estimated shape parameter of Pareto distribution is greater than 0.69 for one or more samples. You should consider using a more robust model, this is because importance sampling is less likely to work well if the marginal posterior and LOO posterior are very different. This is more likely to happen with a non-robust model and highly influential observations.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_GENRE_MULTI] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_KEY] start
+C:\Users\tito\AppData\Local\Programs\Python\Python313\Lib\site-packages\arviz_stats\loo\loo_helper.py:1146: UserWarning: Estimated shape parameter of Pareto distribution is greater than 0.69 for one or more samples. You should consider using a more robust model, this is because importance sampling is less likely to work well if the marginal posterior and LOO posterior are very different. This is more likely to happen with a non-robust model and highly influential observations.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_KEY] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_KEY_SIN] start
+C:\Users\tito\AppData\Local\Programs\Python\Python313\Lib\site-packages\arviz_stats\loo\loo_helper.py:1146: UserWarning: Estimated shape parameter of Pareto distribution is greater than 0.69 for one or more samples. You should consider using a more robust model, this is because importance sampling is less likely to work well if the marginal posterior and LOO posterior are very different. This is more likely to happen with a non-robust model and highly influential observations.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_KEY_SIN] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_MODE] start
+C:\Users\tito\AppData\Local\Programs\Python\Python313\Lib\site-packages\arviz_stats\loo\loo_helper.py:1146: UserWarning: Estimated shape parameter of Pareto distribution is greater than 0.69 for one or more samples. You should consider using a more robust model, this is because importance sampling is less likely to work well if the marginal posterior and LOO posterior are very different. This is more likely to happen with a non-robust model and highly influential observations.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_MODE] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_TIME_SIG] start
+Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<stdin>", line 57, in compute_loo_save
+AttributeError: 'ELPDData' object has no attribute 'elpd_loo'
+[drop_NO_TIME_SIG] ERROR: 'ELPDData' object has no attribute 'elpd_loo'
+DONE
