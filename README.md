@@ -1,7 +1,6 @@
 # insights-spotfy-grupo-4
 
-Análise de faixas do Spotify (114.000 registros, 114 gêneros, com features de áudio) +
-backend de diagnóstico via modelo Bayesiano (Next.js 15).
+Análise de faixas do Spotify (114.000 registros, 114 gêneros, com features de áudio).
 
 ## Estrutura
 
@@ -23,32 +22,9 @@ relatorio/
     q2_generos.py  q3_artistas.py  q4_energia.py
     q5_valencia.py  q6_clusters.py  q7_extremos.py
     resultados/                        # saídas dos scripts (CSV / JSON / TXT / log)
-
-# Backend (diagnóstico via API)
-package.json                           # next 15, react 19, openai 4, zod 3
-tsconfig.json                          # strict, alias @/*
-next.config.ts                         # typescript strict, sem lint no build
-.env.local.example                     # template da chave OpenRouter
-app/
-  layout.tsx                           # <html lang="pt-BR">
-  page.tsx                             # landing
-  diagnose/page.tsx                    # placeholder da UI
-  api/diagnose/route.ts                # POST — score + HDI + explicacao
-  api/generos/route.ts                 # GET — lista de gêneros válidos
-lib/
-  types.ts                             # tipos do modelo + I/O
-  artifacts.ts                         # carrega JSONs do disco
-  k11Model.ts                          # predição Bayesiana (1000 samples)
-  llmExplanation.ts                    # DeepSeek via OpenRouter (PT-BR)
-artifacts/                             # esperado em runtime (NÃO versionado se pesado)
-  feature_names.json
-  genero_cats.json
-  scaler.json
-  k11_posterior_summary.json
-  k11_posterior_samples.json.gz
 ```
 
-## Como rodar — Análise (Python)
+## Como rodar
 
 ```bash
 python3 -m venv .venv
@@ -67,32 +43,6 @@ Ou executar sem abrir a interface:
 .venv/bin/python -m jupyter nbconvert --to notebook --execute --inplace \
   notebooks/02_eda_limpo.ipynb
 ```
-
-## Como rodar — Backend (Node.js)
-
-```bash
-# Pré-requisitos: Node 20+, pasta artifacts/ com os 5 JSONs do modelo
-npm install
-cp .env.local.example .env.local       # editar e colar OPENROUTER_API_KEY
-npm run dev                            # → http://localhost:3000
-```
-
-Endpoints:
-
-- `POST /api/diagnose` — recebe features de áudio + gênero, retorna
-  `{ score, hdi_94, explicacao, genero, ms_per_call }`.
-- `GET /api/generos` — lista os 114 gêneros válidos.
-
-Detalhes do cálculo do score:
-
-1. Z-score nas features contínuas (usa `mean/std` de `scaler.json`); binárias
-   (`explicit`, `mode_bin`) entram sem transformação.
-2. Para cada um dos **1000 samples** do posterior Bayesiano:
-   - `μ_log = α_g + Σ β_gk · x_k_scaled`
-   - `y_pred = max(0, min(100, exp(μ_log) − 1))`  (modelo log-linear)
-3. Score = média das 1000 predições; HDI 94% = percentis 3 e 97.
-4. Explicação: top-3 features por `|β_gk|` (do sample 0) → DeepSeek (OpenRouter)
-   devolve 2-3 frases em PT-BR.
 
 ## Dataset gerado
 
@@ -149,3 +99,82 @@ tabelas em `relatorio/analises/resultados/`.
 
 Abrir `relatorio/report.html` em qualquer navegador moderno (light/dark toggle no canto
 superior direito).
+
+## Aplicação Next (`src/`)
+
+Interface mobile-first que consome a Spotify Web API e roda toda a análise de áudio
+dentro do navegador.
+
+```bash
+npm install
+cp .env.local.example .env.local   # preencher SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET
+npm run dev                        # http://localhost:3000
+```
+
+O que a tela faz:
+
+- **Ouvir a faixa exibida** — o painel de análise embute o player oficial do Spotify (faixa
+  inteira para quem está logado, prévia para os demais) e, quando existe prévia de 30 s,
+  também um player próprio com barra de progresso.
+- **Escanear a faixa do Spotify** — o botão "Escanear áudio da faixa" baixa a prévia pela
+  rota `/api/preview/[id]`, decodifica no navegador e devolve gênero, tom, BPM e
+  dançabilidade.
+- **Enviar músicas para classificação** — arraste um ou vários arquivos (MP3, WAV, M4A,
+  OGG, FLAC). Cada faixa é tocada localmente e analisada por inteiro.
+
+### De onde vem o áudio das faixas do Spotify
+
+A API do Spotify parou de preencher `preview_url` para credenciais criadas depois de
+nov/2024 — sem isso não há áudio para analisar, só metadados. `src/lib/preview-source.ts`
+resolve a prévia em cascata: `preview_url` do Spotify → busca pública do Deezer → busca
+pública da Apple, sempre casando artista **e** título normalizados antes de aceitar o
+resultado. A rota `/api/preview/[id]` serve esse mp3 na mesma origem (evita CORS) e a
+interface só mostra o botão de scan quando o servidor confirma que há áudio; caso
+contrário explica que a faixa só pode ser avaliada por metadados.
+
+### Análise de áudio no navegador
+
+Duas engines, cada uma no que faz melhor:
+
+- **Essentia (WebAssembly)** — `essentia.js` roda `RhythmExtractor2013`, `KeyExtractor`,
+  `Danceability` e `DynamicComplexity`, os mesmos algoritmos de
+  `scripts/classificar_genero.py`, então BPM, tom e dançabilidade da tela batem com o
+  pipeline offline. O binário é copiado de `node_modules` para `public/essentia/` no
+  `prebuild`/`predev`.
+- **Classificador de gênero próprio** — `src/lib/audio-features.ts` extrai 70 descritores
+  por janela de 30 s (20 MFCC média/desvio, 12 chroma, 7 bandas de contraste espectral,
+  centroide, rolloff, largura de banda, ZCR, RMS e andamento por autocorrelação da
+  envoltória de onsets). Faixas longas viram até 3 janelas e as probabilidades são médias.
+
+A tela lista todas as features em três blocos: **medidas da Essentia** (BPM e confiança,
+tom, modo, força do tom, dançabilidade, loudness, complexidade dinâmica), **descritores
+espectrais** do extrator próprio (energia/RMS, centroide, rolloff 85%, largura de banda,
+cruzamentos por zero, planicidade, contraste espectral, pico) e **estimativas**
+(acústica, valência e fala), estas últimas marcadas como heurísticas — o Spotify não
+publica mais essas features e elas não são medíveis diretamente. `instrumentalness`,
+`liveness` e `time_signature` ficam de fora por não haver sinal defensável para elas.
+
+Tudo isso roda num Web Worker (`src/workers/audio-analysis.worker.ts`), então a interface
+não trava durante os segundos de processamento; se o worker não subir, a análise cai para
+a thread principal.
+
+O ponto do desenho: o **mesmo** código TypeScript extrai as features no treino e na
+inferência, o que elimina a divergência clássica de treinar com uma implementação (librosa)
+e inferir com outra.
+
+```bash
+# 1. extrai as features dos 1.000 clipes do GTZAN com o extrator do browser (~7 min)
+npm run features:gtzan
+
+# 2. treina a regressão logística e exporta src/lib/genre-model.ts
+.venv/bin/python scripts/treinar_classificador_web.py
+```
+
+Resultado atual: **63,5% de acurácia em validação cruzada 5x** (±2,9) em 10 gêneros, contra
+10% do acaso; 73,6% no holdout de 25%. O modelo exportado é só escalonador + matriz de
+pesos avaliada com um softmax — sem runtime de ML no cliente e sem enviar áudio a servidor
+algum. `scripts/classificar_genero.py` continua sendo a referência offline mais completa
+(librosa + Essentia nativos, com Random Forest).
+
+> `essentia.js` é distribuída sob **AGPL-3.0**: se a aplicação for publicada, a licença
+> exige disponibilizar o código-fonte do serviço.

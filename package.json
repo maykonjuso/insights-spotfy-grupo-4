@@ -1,24 +1,26 @@
 {
-  "name": "spotify-diagnostico",
+  "name": "insights-spotfy-grupo-4",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/ts/copiar_essentia_wasm.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/ts/copiar_essentia_wasm.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "features:gtzan": "node --experimental-strip-types scripts/ts/extrair_gtzan.mts"
   },
   "dependencies": {
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "openai": "^4.0.0",
-    "zod": "^3.23.0"
+    "essentia.js": "^0.1.3",
+    "next": "^16.1.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
   }
 }
