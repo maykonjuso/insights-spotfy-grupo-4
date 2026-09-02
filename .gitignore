@@ -9,3 +9,21 @@ data/processed/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Q9 drop-one: arrays de log-likelihood por sample (regeneráveis a partir do CSV)
+q9_*.npy
+
+# Q9 posteriors NetCDF: ~1.1 GB no total. Reproduzíveis rodando o notebook.
+q9_*.nc
