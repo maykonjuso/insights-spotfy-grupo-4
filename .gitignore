@@ -9,3 +9,15 @@ data/processed/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Respostas cruas da API do Spotify (cache retomavel)
+data/raw_api/
+
+# Logs de execucao
+logs/
+
+# Dumps do MusicBrainz (varios GB, baixados sob demanda)
+data/musicbrainz/
+
+# Dataset GTZAN (audio, ~1.2 GB)
+data/gtzan/
