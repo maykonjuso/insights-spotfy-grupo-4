@@ -8,6 +8,9 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 
+// resolve previa de ate 30 candidatas: precisa de mais folga que o padrao
+export const maxDuration = 30;
+
 type SearchResponse = {
   tracks: {
     items: SpotifyTrack[];

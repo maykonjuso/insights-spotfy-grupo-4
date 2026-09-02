@@ -10,6 +10,8 @@ import {
 import { buildTrackInsight } from "@/lib/insights";
 import { resolvePreview } from "@/lib/preview-source";
 
+export const maxDuration = 20;
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

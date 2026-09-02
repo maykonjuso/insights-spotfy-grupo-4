@@ -7,6 +7,8 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 
+export const maxDuration = 20;
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

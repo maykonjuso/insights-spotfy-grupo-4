@@ -1,0 +1,11 @@
+# O deploy só precisa do app Next. Estes diretórios somam ~90 MB de dados de
+# análise que não entram no build e só fariam o upload demorar.
+.venv/
+data/
+notebooks/
+relatorio/
+scripts/
+logs/
+dataset2(in).csv
+requirements.txt
+*.ipynb
