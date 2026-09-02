@@ -4,6 +4,14 @@ venv/
 __pycache__/
 *.py[cod]
 
+# Next.js / Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*.local
+!.env.local.example
+
 # Dados gerados pelo notebook (reproduziveis a partir do CSV bruto)
 data/processed/
 
