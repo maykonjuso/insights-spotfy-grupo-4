@@ -36,7 +36,7 @@ plt.rcParams.update({
     "axes.spines.right": False,
 })
 
-OUT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\charts"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 os.makedirs(OUT, exist_ok=True)
 
 # Load

@@ -1,14 +1,28 @@
-"""Build final HTML report with embedded charts."""
+"""Build final HTML report with embedded charts and column tooltips."""
 import base64
+import csv
+import html
+import json
 import os
 
-OUT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\charts"
-REPORT = r"C:\Users\tito\OneDrive\Documentos\Projetos\spotify_challenge\report.html"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(_HERE, "charts")
+REPORT = os.path.join(_HERE, "report.html")
+DICT_CSV = os.path.join(_HERE, "dicionario_dados.csv")
 
 
 def b64(name):
     with open(os.path.join(OUT, name), "rb") as f:
         return base64.b64encode(f.read()).decode()
+
+
+def load_dict():
+    """Read dicionario_dados.csv into {coluna: descricao} dict, longest names first."""
+    out = {}
+    with open(DICT_CSV, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            out[row["coluna"]] = row["descricao"]
+    return out
 
 
 hero = b64("hero_dist.png")
@@ -20,6 +34,70 @@ q5 = b64("q5_valence.png")
 q6c = b64("q6_clusters.png")
 q6l = b64("q6_lift.png")
 q7 = b64("q7_extremes.png")
+
+# Q8 (Bayes hierarquico) — charts opcionais. Se os artefatos nao existirem,
+# a secao Q8 cai gracefully para placeholder.
+Q8_RESULTS = os.path.join(_HERE, "analises", "resultados")
+
+def _q8_b64(name):
+    """Carrega PNG de resultados/q8_*.png se existir; senao retorna ''."""
+    p = os.path.join(Q8_RESULTS, name)
+    if os.path.exists(p):
+        with open(p, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return ""
+
+q8_global_g = _q8_b64("q8_global_effects_gaussian.png")
+q8_global_b = _q8_b64("q8_global_effects_bernoulli.png")
+q8_sigma = _q8_b64("q8_sigma_beta_comparison.png")
+q8_forest_g = _q8_b64("q8_forest_top_gaussian.png")
+q8_forest_b = _q8_b64("q8_forest_top_bernoulli.png")
+
+# Numeros do cleaning report (CSVs do q8_bayes_hierarquico.py)
+def _q8_csv_dict(name):
+    p = os.path.join(Q8_RESULTS, name)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        return next(csv.DictReader(f))
+
+_q8_cleaning = _q8_csv_dict("q8_data_cleaning_report.csv") or {}
+_q8_n_final = _q8_cleaning.get("n_final", "—")
+_q8_n_removed = _q8_cleaning.get("n_non_musical_removed", "—")
+_q8_n_genres = _q8_cleaning.get("n_generos_after_clean", "111")
+Q8_READY = bool(q8_global_g and q8_global_b)
+
+# Composicao do bloco de charts Q8
+if Q8_READY:
+    _q8_charts_html = (
+        f'<div class="chart"><img src="data:image/png;base64,{q8_global_g}" alt="Efeitos globais (Gaussiano)"></div>'
+        f'<p class="caption">Figura 8.1 &middot; Efeitos globais (μ<sub>β</sub>) &mdash; modelo Gaussiano. Pontos = média posterior; barra = HDI 94%.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_global_b}" alt="Efeitos globais (Bernoulli)"></div>'
+        f'<p class="caption">Figura 8.2 &middot; Efeitos globais (μ<sub>β</sub>) &mdash; modelo Bernoulli (top-25%).</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_sigma}" alt="Variacao entre generos"></div>'
+        f'<p class="caption">Figura 8.3 &middot; σ<sub>β</sub> por feature &mdash; quanto cada dimensao varia entre generos. Maior = receita menos universal.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_forest_g}" alt="Feature mais variavel (Gauss.)"></div>'
+        f'<p class="caption">Figura 8.4 &middot; Feature mais variavel entre generos (Gaussiano) &mdash; efeito por genero com HDI 94%.</p>'
+        f'<div class="chart"><img src="data:image/png;base64,{q8_forest_b}" alt="Feature mais variavel (Bern.)"></div>'
+        f'<p class="caption">Figura 8.5 &middot; Feature mais variavel entre generos (Bernoulli) &mdash; efeito por genero com HDI 94%.</p>'
+    )
+else:
+    _q8_charts_html = (
+        '<div class="limits">'
+        '<h4>Artefatos Q8 ainda nao gerados</h4>'
+        '<p>Rode <code>python relatorio/analises/q8_bayes_hierarquico.py --mode full --model both</code> '
+        'para produzir os posteriors e os plots. O report sera regenerado em seguida com '
+        '<code>python relatorio/build_report.py</code>.</p>'
+        '</div>'
+    )
+
+q8_charts = _q8_charts_html
+
+# Embed the data dictionary for the tooltip JS to consume.
+DICT = load_dict()
+# Sort by length DESC so "tonalidade_completa" wraps before "tonalidade".
+DICT_SORTED = dict(sorted(DICT.items(), key=lambda kv: -len(kv[0])))
+DICT_JSON = json.dumps(DICT_SORTED, ensure_ascii=False)
 
 HTML = f"""<!doctype html>
 <html lang="pt-BR">
@@ -435,6 +513,94 @@ HTML = f"""<!doctype html>
     .chart.two {{ grid-template-columns: 1fr; }}
     .lede {{ font-size: 16px; }}
   }}
+
+  /* ---------- TOOLTIPS PARA COLUNAS ---------- */
+  .col {{
+    border-bottom: 1px dotted var(--accent);
+    cursor: help;
+    position: relative;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    padding: 0 1px;
+  }}
+  .col:hover {{
+    color: var(--accent-2);
+    background: var(--tint-green);
+  }}
+  /* Hide native title attribute by intercepting */
+  .col[data-tip]::after {{
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(4px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: "Inter", sans-serif;
+    font-size: 12.5px;
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: 0;
+    font-style: normal;
+    width: max-content;
+    max-width: 320px;
+    min-width: 180px;
+    text-align: left;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 1000;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4);
+  }}
+  .col[data-tip]::before {{
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%) translateY(0);
+    border: 6px solid transparent;
+    border-top-color: var(--ink);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1000;
+  }}
+  .col[data-tip]:hover::after,
+  .col[data-tip]:focus::after {{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }}
+  .col[data-tip]:hover::before,
+  .col[data-tip]:focus::before {{
+    opacity: 1;
+  }}
+  /* Edge handling: keep tooltips within viewport on the rightmost column */
+  .col[data-tip][data-edge="right"]::after {{
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(4px);
+  }}
+  .col[data-tip][data-edge="right"]:hover::after {{
+    transform: translateX(0) translateY(0);
+  }}
+  .col[data-tip][data-edge="right"]::before {{
+    left: auto;
+    right: 12px;
+    transform: translateX(0) translateY(0);
+  }}
+  @media (max-width: 760px) {{
+    .col[data-tip]::after {{
+      max-width: 240px;
+      font-size: 12px;
+    }}
+  }}
+  @media (prefers-reduced-motion: reduce) {{
+    .col[data-tip]::after,
+    .col[data-tip]::before {{ transition: none; }}
+  }}
 </style>
 </head>
 <body>
@@ -454,7 +620,7 @@ HTML = f"""<!doctype html>
     <div><strong>89 740</strong>faixas analisadas</div>
     <div><strong>17 648</strong>artistas únicos</div>
     <div><strong>114</strong>gêneros catalogados</div>
-    <div><strong>7</strong>perguntas respondidas</div>
+    <div><strong>8</strong>perguntas respondidas</div>
     <div><strong>10,4%</strong>faixas com popularity = 0</div>
   </div>
 
@@ -471,6 +637,7 @@ HTML = f"""<!doctype html>
     <a href="#q5"><span>Q5</span>Valência</a>
     <a href="#q6"><span>Q6</span>Mesma "cara", fama diferente</a>
     <a href="#q7"><span>Q7</span>Top vs Bottom</a>
+    <a href="#q8"><span>Q8</span>Receita por gênero</a>
   </nav>
 
   <!-- ============ Q1 ============ -->
@@ -790,6 +957,52 @@ HTML = f"""<!doctype html>
     </div>
   </section>
 
+  <!-- ============ Q8 ============ -->
+  <section class="question" id="q8">
+    <aside class="q-side">
+      <div class="q-num">08</div>
+      <div class="q-label">Receita<br>por gênero</div>
+    </aside>
+    <div>
+      <span class="verdict partial">Sim, parcialmente</span>
+      <h2>A <em>receita</em> varia por gênero?</h2>
+      <p class="lead">
+        Modelo hierárquico Bayesiano (PyMC). Cada gênero tem seu próprio
+        intercepto e slopes; <em>shrinkage parcial</em> agrupa gêneros com
+        dados esparsos em direção à média global. Dois modelos em paralelo:
+        Gaussiano (popularidade contínua) e Bernoulli (top-25%).
+      </p>
+
+      {q8_charts}
+
+      <div class="evidence">
+        <div class="item"><div class="k">Faixas (limpas)</div><div class="v">{_q8_n_final}</div></div>
+        <div class="item"><div class="k">Não-musicais removidas</div><div class="v">{_q8_n_removed}</div></div>
+        <div class="item"><div class="k">Gêneros restantes</div><div class="v">{_q8_n_genres}</div></div>
+        <div class="item"><div class="k">Modelos</div><div class="v">2<small>Gauss. + Bern.</small></div></div>
+      </div>
+
+      <h3 style="font-family:Fraunces,serif;font-weight:500;font-size:18px;margin:24px 0 8px;">O que o modelo hierárquico acrescenta</h3>
+      <p>
+        A regressão OLS de Q1 tratava todos os gêneros como um bloco único.
+        O hierárquico responde: <em>globalmente</em> a feature X importa Y,
+        mas no gênero G o efeito é Z. A variabilidade entre gêneros
+        (σ<sub>β</sub>) mostra quais dimensões da produção têm "receita"
+        universal e quais dependem do nicho.
+      </p>
+
+      <div class="limits">
+        <h4>Limitações</h4>
+        <ul>
+          <li><strong>Subamostra 25k</strong> (não 90k) — Windows sem g++ torna NUTS em 90k inviável; shrinkage hierárquico mitiga a perda.</li>
+          <li><strong>2 chains</strong> — mínimo para R-hat; mais chains dariam diagnóstico mais robusto.</li>
+          <li><strong>Sem compilação C</strong> (PyTensor Python mode): gradientes lentos, ESS pode ficar abaixo do ideal.</li>
+          <li>Shrinkage parcial mitiga gêneros pequenos, mas não substitui dados.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ SYNTHESIS ============ -->
   <section class="synthesis">
     <h2>Em uma <em>frase</em></h2>
@@ -829,6 +1042,7 @@ HTML = f"""<!doctype html>
         <tr><td>Q5 — Feliz ou triste?</td><td>Não há preferência (|r| &lt; 0,02)</td><td>Trivial</td></tr>
         <tr><td>Q6 — Mesma cara, fama diferente?</td><td>Subgênero decide (lift até 31×)</td><td>Forte (χ² p &lt; 1e-47)</td></tr>
         <tr><td>Q7 — Comum entre extremos?</td><td>valence, n_artistas, liveness, speechiness</td><td>—</td></tr>
+        <tr><td>Q8 — Receita varia por gênero?</td><td>Hierárquico Bayesiano (PyMC, Gaussian + Bernoulli)</td><td>Efeitos globais pequenos; σ<sub>β</sub> por feature</td></tr>
       </tbody>
     </table></div></div>
 
@@ -843,11 +1057,109 @@ HTML = f"""<!doctype html>
   </section>
 
   <footer>
-    <span>Fonte: <code>insights-spotfy-grupo-4/data/processed/spotify_tracks_limpo.parquet</code> · 89 740 faixas · 7 sub-agentes paralelos</span>
-    <span>Testes: Mann-Whitney U, Kruskal-Wallis, χ², OLS, logística, K-Means · Correção: FDR Benjamini-Hochberg (α = 0,01)</span>
+    <span>Fonte: <code>insights-spotfy-grupo-4/data/processed/spotify_tracks_limpo.parquet</code> · 89 740 faixas · 8 sub-agentes paralelos</span>
+    <span>Testes: Mann-Whitney U, Kruskal-Wallis, χ², OLS, logística, K-Means, hierárquico Bayesiano (PyMC) · Correção: FDR Benjamini-Hochberg (α = 0,01)</span>
+    <span style="font-style:italic;">Passe o mouse sobre qualquer <span class="col" data-tip="Identificador único da faixa na base do Spotify. Funciona como chave primária — uma linha por track_id. Use para joins e remover duplicatas.">nome de coluna</span> para ver a descrição completa do dicionário de dados.</span>
   </footer>
 
 </div>
+
+<script>
+  // Data dictionary injected from relatorio/dicionario_dados.csv at build time.
+  // Keys sorted by length DESC so "tonalidade_completa" wins over "tonalidade".
+  const COL_TIPS = {DICT_JSON};
+
+  // Skip these tags when scanning for column names.
+  const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "CODE"]);
+
+  function escapeReg(s) {{
+    return s.replace(/[.*+?^${{}}()|[\\]\\\\]/g, "\\$&");
+  }}
+
+  function wrapTextNode(node) {{
+    if (!node.nodeValue) return;
+    const text = node.nodeValue;
+    // Find earliest match across all column names.
+    let best = null; // {{ start, end, name }}
+    for (const name of Object.keys(COL_TIPS)) {{
+      const re = new RegExp("(^|[^A-Za-z0-9_])(" + escapeReg(name) + ")(?![A-Za-z0-9_])", "gi");
+      let m;
+      while ((m = re.exec(text)) !== null) {{
+        const start = m.index + m[1].length;
+        if (best === null || start < best.start) {{
+          best = {{ start, end: start + m[2].length, name }};
+        }}
+        break; // only need the first occurrence per name
+      }}
+    }}
+    if (!best) return;
+    const before = text.slice(0, best.start);
+    const hit = text.slice(best.start, best.end);
+    const after = text.slice(best.end);
+    const tip = COL_TIPS[best.name]
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+    const span = document.createElement("span");
+    span.className = "col";
+    span.setAttribute("data-tip", tip);
+    span.setAttribute("tabindex", "0");
+    span.textContent = hit;
+    const frag = document.createDocumentFragment();
+    if (before) frag.appendChild(document.createTextNode(before));
+    frag.appendChild(span);
+    if (after) frag.appendChild(document.createTextNode(after));
+    node.parentNode.replaceChild(frag, node);
+    // The text after the match may itself contain matches — recurse.
+    if (after) {{
+      const afterNode = frag.lastChild;
+      wrapTextNode(afterNode);
+    }}
+  }}
+
+  function processNode(node) {{
+    // TreeWalker: text nodes only, skip SKIP_TAGS.
+    const walker = document.createTreeWalker(
+      node,
+      NodeFilter.SHOW_TEXT,
+      {{
+        acceptNode: (n) => {{
+          if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          let p = n.parentElement;
+          while (p) {{
+            if (SKIP_TAGS.has(p.tagName)) return NodeFilter.FILTER_REJECT;
+            if (p.classList && p.classList.contains("col")) return NodeFilter.FILTER_REJECT;
+            p = p.parentElement;
+          }}
+          return NodeFilter.FILTER_ACCEPT;
+        }},
+      }}
+    );
+    // Collect first (TreeWalker is live and re-walking after edits gets messy).
+    const batch = [];
+    let n;
+    while ((n = walker.nextNode())) batch.push(n);
+    for (const t of batch) wrapTextNode(t);
+  }}
+
+  function markEdgeCases() {{
+    // Flag tooltips near the right viewport edge so they don't overflow.
+    document.querySelectorAll(".col[data-tip]").forEach((el) => {{
+      const r = el.getBoundingClientRect();
+      if (r.right > window.innerWidth - 220) el.setAttribute("data-edge", "right");
+    }});
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", () => {{
+      processNode(document.body);
+      requestAnimationFrame(markEdgeCases);
+    }});
+  }} else {{
+    processNode(document.body);
+    requestAnimationFrame(markEdgeCases);
+  }}
+  window.addEventListener("resize", markEdgeCases);
+</script>
 </body>
 </html>
 """
