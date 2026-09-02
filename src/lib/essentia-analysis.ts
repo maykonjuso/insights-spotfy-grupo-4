@@ -17,9 +17,21 @@ export type EssentiaDescriptors = {
 // offline. O bundle tem ~2,5 MB, por isso o import e dinamico.
 let instance: Promise<Essentia> | null = null;
 
+// O build web da essentia.js foi compilado com ENVIRONMENT=web fixo: dentro de
+// um Web Worker ele cai no ramo que le document.currentScript, que nao existe
+// ali, e o modulo nem chega a carregar. Como passamos locateFile, o valor lido
+// e irrelevante -- basta o objeto existir. Na thread principal isso e no-op.
+function ensureDocumentShim() {
+  const scope = globalThis as { document?: unknown };
+  if (typeof scope.document === "undefined") {
+    scope.document = { currentScript: null };
+  }
+}
+
 async function loadEssentia() {
   if (!instance) {
     instance = (async () => {
+      ensureDocumentShim();
       const [wasm, core] = await Promise.all([
         import("essentia.js/dist/essentia-wasm.web.js"),
         import("essentia.js/dist/essentia.js-core.es.js"),
@@ -46,33 +58,31 @@ function centerWindow(samples: Float32Array) {
   return samples.slice(start, start + size);
 }
 
-export async function describeWithEssentia(samples: Float32Array): Promise<EssentiaDescriptors | null> {
+// Lanca em caso de falha: quem chama decide se tenta de novo noutro contexto e
+// o que mostrar na tela. Engolir o erro aqui foi o que escondeu a falha no worker.
+export async function describeWithEssentia(samples: Float32Array): Promise<EssentiaDescriptors> {
+  const essentia = await loadEssentia();
+  const window = centerWindow(samples);
+  const vector = essentia.arrayToVector(window);
+
   try {
-    const essentia = await loadEssentia();
-    const window = centerWindow(samples);
-    const vector = essentia.arrayToVector(window);
+    const rhythm = essentia.RhythmExtractor2013(vector);
+    const key = essentia.KeyExtractor(vector);
+    const dynamics = essentia.DynamicComplexity(vector);
+    const dance = essentia.Danceability(vector);
 
-    try {
-      const rhythm = essentia.RhythmExtractor2013(vector);
-      const key = essentia.KeyExtractor(vector);
-      const dynamics = essentia.DynamicComplexity(vector);
-      const dance = essentia.Danceability(vector);
-
-      return {
-        // a Danceability da Essentia vive em ~0..3; normalizamos para 0..1
-        danceability: Math.max(0, Math.min(1, dance.danceability / 3)),
-        bpm: rhythm.bpm,
-        bpmConfidence: rhythm.confidence,
-        key: key.key,
-        scale: key.scale,
-        keyStrength: key.strength,
-        dynamicComplexity: dynamics.dynamicComplexity,
-        loudnessDb: dynamics.loudness,
-      };
-    } finally {
-      vector.delete?.();
-    }
-  } catch {
-    return null;
+    return {
+      // a Danceability da Essentia vive em ~0..3; normalizamos para 0..1
+      danceability: Math.max(0, Math.min(1, dance.danceability / 3)),
+      bpm: rhythm.bpm,
+      bpmConfidence: rhythm.confidence,
+      key: key.key,
+      scale: key.scale,
+      keyStrength: key.strength,
+      dynamicComplexity: dynamics.dynamicComplexity,
+      loudnessDb: dynamics.loudness,
+    };
+  } finally {
+    vector.delete?.();
   }
 }

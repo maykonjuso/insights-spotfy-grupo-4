@@ -10,6 +10,7 @@ export type AnalysisResponse = {
   id: number;
   classification: Classification | null;
   descriptors: EssentiaDescriptors | null;
+  descriptorsError?: string;
   error?: string;
 };
 
@@ -20,8 +21,17 @@ self.addEventListener("message", async (event: MessageEvent<AnalysisRequest>) =>
 
   try {
     const classification = classifyAudio(samples);
-    const descriptors = await describeWithEssentia(samples);
-    const response: AnalysisResponse = { id, classification, descriptors };
+    let descriptors: EssentiaDescriptors | null = null;
+    let descriptorsError: string | undefined;
+
+    // a Essentia pode falhar sozinha sem invalidar a classificacao
+    try {
+      descriptors = await describeWithEssentia(samples);
+    } catch (essentiaError) {
+      descriptorsError = essentiaError instanceof Error ? essentiaError.message : "falha ao carregar a Essentia";
+    }
+
+    const response: AnalysisResponse = { id, classification, descriptors, descriptorsError };
     self.postMessage(response);
   } catch (error) {
     const response: AnalysisResponse = {

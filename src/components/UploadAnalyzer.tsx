@@ -28,6 +28,7 @@ type UploadResult = {
   tempo: number;
   genres: GenreScore[];
   descriptors: EssentiaDescriptors | null;
+  descriptorsError?: string;
   summary: AudioSummary | null;
   signals: string[];
 };
@@ -190,7 +191,7 @@ export function UploadAnalyzer() {
     try {
       const { buffer, monoSamples } = await decodeAudioFile(file);
       const metrics = analyzeChannel(buffer.getChannelData(0), buffer.duration);
-      const { classification, descriptors } = await analyzeSamples(monoSamples);
+      const { classification, descriptors, descriptorsError } = await analyzeSamples(monoSamples);
       const base = { fileName: file.name, durationMs: buffer.duration * 1000, ...metrics };
       const scored = buildUploadScore(base);
       const objectUrl = URL.createObjectURL(file);
@@ -204,6 +205,7 @@ export function UploadAnalyzer() {
           // abaixo de 5s a janela nao sustenta uma leitura de genero
           genres: classification && buffer.duration >= 5 ? classification.scores.slice(0, 3) : [],
           descriptors,
+          descriptorsError,
           summary: classification?.summary ?? null,
           ...base,
           ...scored,
@@ -324,6 +326,14 @@ export function UploadAnalyzer() {
                   clippedSamples: result.clippedSamples,
                 })}
               />
+
+              {result.descriptors ? null : (
+                <p className="upload-note">
+                  Descritores da Essentia (tom, BPM, dançabilidade) indisponíveis
+                  {result.descriptorsError ? ` (${result.descriptorsError})` : ""} — a leitura acima usa só o DSP
+                  próprio.
+                </p>
+              )}
 
               <div className="signal-list">
                 {result.signals.map((signal) => (

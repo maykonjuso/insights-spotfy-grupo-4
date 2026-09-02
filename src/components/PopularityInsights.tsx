@@ -4,9 +4,7 @@ import { useEffect, type CSSProperties } from "react";
 import { buildTrackInsight, durationLabel } from "@/lib/insights";
 import { currentSourceId, stopPlayback } from "@/lib/preview-player";
 import type { AudioFeatures, SpotifyTrack } from "@/lib/spotify";
-import type { TrackSummary } from "./TrackList";
 import { PreviewPlayer } from "./PreviewPlayer";
-import { SpotifyEmbed } from "./SpotifyEmbed";
 import { TrackScanner } from "./TrackScanner";
 
 export type PreviewInfo = {
@@ -23,36 +21,64 @@ export type TrackDetails = {
     label: string;
     tone: "low" | "mid" | "high";
     signals: string[];
-    audioFeaturesAvailable: boolean;
   };
 };
 
 type PopularityInsightsProps = {
   details: TrackDetails | null;
-  fallbackTrack?: TrackSummary;
   isLoading: boolean;
 };
 
-function artwork(track?: SpotifyTrack | TrackSummary) {
+function artwork(track?: SpotifyTrack) {
   return track?.album.images[1]?.url || track?.album.images[0]?.url;
 }
 
-function metricLabel(value?: number, suffix = "%") {
-  if (typeof value !== "number") return "--";
+function metricLabel(value: number, suffix = "%") {
   if (suffix === "bpm") return `${Math.round(value)} bpm`;
   return `${Math.round(value * 100)}${suffix}`;
 }
 
-export function PopularityInsights({ details, fallbackTrack, isLoading }: PopularityInsightsProps) {
-  const track = details?.track || fallbackTrack;
+function releaseLabel(releaseDate: string) {
+  const [year, month, day] = releaseDate.split("-");
+  if (day) return `${day}/${month}/${year}`;
+  if (month) return `${month}/${year}`;
+  return year || releaseDate;
+}
+
+export function PopularityInsights({ details, isLoading }: PopularityInsightsProps) {
+  const track = details?.track;
   const features = details?.features;
   const insight = details?.insight;
   const preview = details?.preview;
   const image = artwork(track);
+  const popularity = typeof track?.popularity === "number" ? track.popularity : null;
   const score = insight?.score ?? (track ? buildTrackInsight(track, null).score : 0);
   const scoreStyle = { "--score": score } as CSSProperties;
-  const popularityLabel = typeof track?.popularity === "number" ? String(track.popularity) : "Não disponível";
   const trackId = track?.id;
+
+  // so entra na grade o que a API realmente devolveu: com as credenciais atuais
+  // popularity e audio-features vem vazios, e celulas com "--" so poluem a tela
+  const metrics = track
+    ? [
+        ...(popularity !== null ? [{ label: "Popularidade", value: `${popularity}/100` }] : []),
+        { label: "Duração", value: durationLabel(track.duration_ms) },
+        { label: "Lançamento", value: releaseLabel(track.album.release_date) },
+        { label: "Artistas", value: String(track.artists.length) },
+        { label: "Explícito", value: track.explicit ? "Sim" : "Não" },
+        ...(typeof features?.danceability === "number"
+          ? [{ label: "Dançabilidade", value: metricLabel(features.danceability) }]
+          : []),
+        ...(typeof features?.energy === "number"
+          ? [{ label: "Energia", value: metricLabel(features.energy) }]
+          : []),
+        ...(typeof features?.valence === "number"
+          ? [{ label: "Valência", value: metricLabel(features.valence) }]
+          : []),
+        ...(typeof features?.tempo === "number"
+          ? [{ label: "Tempo", value: metricLabel(features.tempo, "bpm") }]
+          : []),
+      ]
+    : [];
 
   // trocar de faixa corta a previa anterior; continuar a mesma faixa nao.
   useEffect(() => {
@@ -61,15 +87,10 @@ export function PopularityInsights({ details, fallbackTrack, isLoading }: Popula
 
   return (
     <aside className="insight-card" id="analise">
-      <div className="section-heading">
-        <p>Etapa 3</p>
-        <h2>Análise de popularidade</h2>
-      </div>
-
       {isLoading ? <div className="insight-loading">Analisando sinais da faixa...</div> : null}
 
       {!track && !isLoading ? (
-        <p className="empty-state">Selecione um gênero e toque em uma música para ver o painel analítico.</p>
+        <p className="empty-state">Escolha uma música para ver a análise.</p>
       ) : null}
 
       {track ? (
@@ -92,41 +113,23 @@ export function PopularityInsights({ details, fallbackTrack, isLoading }: Popula
             />
           ) : null}
 
-          <SpotifyEmbed trackId={track.id} trackName={track.name} />
+          {details ? <TrackScanner trackId={track.id} trackName={track.name} /> : null}
 
-          <TrackScanner trackId={track.id} trackName={track.name} hasAudio={Boolean(preview)} />
-
-          <div className={`score-ring ${insight?.tone || "mid"}`} style={scoreStyle}>
-            <span>{score}</span>
-            <strong>{insight?.label || "Popularity score"}</strong>
-            <small>base Spotify: {popularityLabel}/100</small>
-          </div>
+          {popularity !== null ? (
+            <div className={`score-ring ${insight?.tone || "mid"}`} style={scoreStyle}>
+              <span>{score}</span>
+              <strong>{insight?.label || "Popularity score"}</strong>
+              <small>base Spotify: {popularity}/100</small>
+            </div>
+          ) : null}
 
           <div className="metrics-grid">
-            <div>
-              <span>Popularidade</span>
-              <strong>{popularityLabel}</strong>
-            </div>
-            <div>
-              <span>Duração</span>
-              <strong>{durationLabel(track.duration_ms)}</strong>
-            </div>
-            <div>
-              <span>Dançabilidade</span>
-              <strong>{metricLabel(features?.danceability)}</strong>
-            </div>
-            <div>
-              <span>Energia</span>
-              <strong>{metricLabel(features?.energy)}</strong>
-            </div>
-            <div>
-              <span>Valência</span>
-              <strong>{metricLabel(features?.valence)}</strong>
-            </div>
-            <div>
-              <span>Tempo</span>
-              <strong>{metricLabel(features?.tempo, "bpm")}</strong>
-            </div>
+            {metrics.map((metric) => (
+              <div key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </div>
+            ))}
           </div>
 
           <div className="signal-list">

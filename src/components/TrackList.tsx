@@ -10,6 +10,7 @@ export type TrackSummary = {
   duration_ms: number;
   explicit: boolean;
   preview_url?: string | null;
+  preview?: { source: string; label: string } | null;
   external_urls: { spotify: string };
   artists: { id: string; name: string }[];
   album: {
@@ -24,7 +25,7 @@ type TrackListProps = {
   tracks: TrackSummary[];
   isLoading: boolean;
   selectedTrackId?: string;
-  onSelectTrack: (track: TrackSummary, options?: { focusPlayer?: boolean }) => void;
+  onSelectTrack: (track: TrackSummary) => void;
 };
 
 function cover(track: TrackSummary) {
@@ -34,11 +35,6 @@ function cover(track: TrackSummary) {
 export function TrackList({ tracks, isLoading, selectedTrackId, onSelectTrack }: TrackListProps) {
   return (
     <section className="panel track-panel">
-      <div className="section-heading">
-        <p>Etapa 2</p>
-        <h2>Tracks em destaque</h2>
-      </div>
-
       {isLoading ? (
         <div className="skeleton-list" aria-label="Carregando músicas">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -56,12 +52,7 @@ export function TrackList({ tracks, isLoading, selectedTrackId, onSelectTrack }:
                 className={`track-row ${selectedTrackId === track.id ? "is-selected" : ""}`}
               >
                 <span className="rank">{String(index + 1).padStart(2, "0")}</span>
-                <PlayButton
-                  sourceId={track.id}
-                  url={track.preview_url}
-                  title={track.name}
-                  onFallback={() => onSelectTrack(track, { focusPlayer: true })}
-                />
+                <PlayButton sourceId={track.id} url={`/api/preview/${track.id}`} title={track.name} />
                 <button type="button" className="track-select" onClick={() => onSelectTrack(track)}>
                   {cover(track) ? (
                     <img src={cover(track)} alt={`Capa de ${track.album.name}`} />

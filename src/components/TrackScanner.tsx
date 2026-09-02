@@ -12,7 +12,6 @@ import { SoundFeatureGrid } from "./SoundFeatureGrid";
 type TrackScannerProps = {
   trackId: string;
   trackName: string;
-  hasAudio: boolean;
 };
 
 type ScanResult = {
@@ -20,24 +19,30 @@ type ScanResult = {
   descriptors: EssentiaDescriptors | null;
   summary: AudioSummary | null;
   durationMs: number;
+  descriptorsError?: string;
 };
 
-export function TrackScanner({ trackId, trackName, hasAudio }: TrackScannerProps) {
+export function TrackScanner({ trackId, trackName }: TrackScannerProps) {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // a analise dispara sozinha ao selecionar a faixa; trocar de musica no meio
+  // aborta o download e descarta o resultado que estiver a caminho
   useEffect(() => {
-    setResult(null);
-    setError(null);
+    const controller = new AbortController();
+    void scan(controller.signal);
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId]);
 
-  async function scan() {
+  async function scan(signal?: AbortSignal) {
+    setResult(null);
     setIsScanning(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/preview/${trackId}`);
+      const response = await fetch(`/api/preview/${trackId}`, { signal });
 
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -47,37 +52,43 @@ export function TrackScanner({ trackId, trackName, hasAudio }: TrackScannerProps
       const { buffer, monoSamples } = await decodeAudioData(await response.arrayBuffer());
       const analysis = await analyzeSamples(monoSamples);
 
+      if (signal?.aborted) return;
+
       setResult({
         genres: analysis.classification ? analysis.classification.scores.slice(0, 3) : [],
         descriptors: analysis.descriptors,
         summary: analysis.classification?.summary ?? null,
         durationMs: buffer.duration * 1000,
+        descriptorsError: analysis.descriptorsError,
       });
     } catch (scanError) {
+      if (signal?.aborted) return;
       setError(scanError instanceof Error ? scanError.message : "Falha ao escanear o áudio.");
     } finally {
-      setIsScanning(false);
+      if (!signal?.aborted) setIsScanning(false);
     }
   }
 
-  // sem fonte de audio nao ha o que escanear: a API do Spotify parou de
-  // devolver preview_url e nem toda faixa tem previa publica equivalente
-  if (!hasAudio) {
-    return (
-      <p className="upload-note">
-        Esta faixa não tem prévia de áudio disponível, então só dá para avaliá-la pelos metadados acima. Para uma
-        leitura do áudio (gênero, tom, BPM), envie o arquivo no painel de upload.
-      </p>
-    );
-  }
+  // o botao aparece sempre: quando o servidor ainda nao confirmou a previa, o
+  // clique refaz a busca. Esconder o botao fazia uma falha de rede passageira
+  // parecer ausencia definitiva de audio.
+  const rotulo = isScanning ? "Analisando áudio..." : result ? "Analisar de novo" : "Analisar áudio da faixa";
 
   return (
     <div className="scan-block">
       <button type="button" className="scan-button" onClick={() => void scan()} disabled={isScanning}>
-        {isScanning ? "Escaneando áudio..." : "Escanear áudio da faixa"}
+        {rotulo}
       </button>
 
-      {error ? <p className="error-banner">{error}</p> : null}
+      {error ? (
+        <>
+          <p className="error-banner">{error}</p>
+          <p className="feature-note">
+            Se a busca falhou por rede, clicar de novo costuma resolver — nada de falha fica em cache. Se a faixa
+            realmente não tem prévia em nenhum catálogo, envie o arquivo no painel de upload.
+          </p>
+        </>
+      ) : null}
 
       {result ? (
         <div className="genre-result">
@@ -98,6 +109,12 @@ export function TrackScanner({ trackId, trackName, hasAudio }: TrackScannerProps
             como country.
           </p>
         </div>
+      ) : null}
+
+      {result?.descriptorsError ? (
+        <p className="feature-note">
+          Descritores da Essentia indisponíveis ({result.descriptorsError}); a leitura abaixo usa só o DSP próprio.
+        </p>
       ) : null}
 
       {result ? (

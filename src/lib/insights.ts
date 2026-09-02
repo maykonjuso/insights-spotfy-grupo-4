@@ -5,7 +5,6 @@ export type TrackInsight = {
   label: string;
   tone: "low" | "mid" | "high";
   signals: string[];
-  audioFeaturesAvailable: boolean;
 };
 
 function clamp(value: number, min = 0, max = 100) {
@@ -32,7 +31,9 @@ export function buildTrackInsight(track: SpotifyTrack, features: AudioFeatures |
       signals.push("Baixa tração no snapshot atual de popularidade.");
     }
   } else {
-    signals.push("Popularity oficial não veio nesta resposta da API; score estimado por metadados.");
+    signals.push(
+      "A API não devolveu popularity para esta credencial; a leitura vem dos metadados e do áudio escaneado.",
+    );
   }
 
   const releaseTime = Date.parse(track.album.release_date);
@@ -79,8 +80,6 @@ export function buildTrackInsight(track: SpotifyTrack, features: AudioFeatures |
     if (valence) {
       signals.push(`Valência estimada: ${valence}; no relatório, esse efeito foi pequeno.`);
     }
-  } else {
-    signals.push("Audio features não disponíveis para esta credencial/API; análise usa dados públicos da faixa.");
   }
 
   score = Math.round(clamp(score));
@@ -92,7 +91,6 @@ export function buildTrackInsight(track: SpotifyTrack, features: AudioFeatures |
     label,
     tone,
     signals: signals.slice(0, 5),
-    audioFeaturesAvailable: Boolean(features),
   };
 }
 

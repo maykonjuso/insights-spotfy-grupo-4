@@ -7,6 +7,7 @@ import { describeWithEssentia, type EssentiaDescriptors } from "./essentia-analy
 export type AudioAnalysis = {
   classification: Classification | null;
   descriptors: EssentiaDescriptors | null;
+  descriptorsError?: string;
   onMainThread: boolean;
 };
 
@@ -51,10 +52,21 @@ function getWorker() {
   return worker;
 }
 
+async function describeSafely(samples: Float32Array) {
+  try {
+    return { descriptors: await describeWithEssentia(samples) };
+  } catch (error) {
+    return {
+      descriptors: null,
+      descriptorsError: error instanceof Error ? error.message : "falha ao carregar a Essentia",
+    };
+  }
+}
+
 async function runOnMainThread(samples: Float32Array): Promise<AudioAnalysis> {
   return {
     classification: classifyAudio(samples),
-    descriptors: await describeWithEssentia(samples),
+    ...(await describeSafely(samples)),
     onMainThread: true,
   };
 }
@@ -77,9 +89,14 @@ export async function analyzeSamples(samples: Float32Array): Promise<AudioAnalys
 
     if (response.error) throw new Error(response.error);
 
+    // a Essentia depende do ambiente do worker; se falhar la, vale uma segunda
+    // tentativa na thread principal antes de desistir dos descritores
+    const fallback = response.descriptors ? null : await describeSafely(samples);
+
     return {
       classification: response.classification,
-      descriptors: response.descriptors,
+      descriptors: response.descriptors ?? fallback?.descriptors ?? null,
+      descriptorsError: response.descriptors ? undefined : fallback?.descriptorsError,
       onMainThread: false,
     };
   } catch {

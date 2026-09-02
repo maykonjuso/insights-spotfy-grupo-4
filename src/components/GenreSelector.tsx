@@ -24,11 +24,6 @@ export function GenreSelector({ genres, selectedGenre, onSelect }: GenreSelector
 
   return (
     <section className="panel">
-      <div className="section-heading">
-        <p>Etapa 1</p>
-        <h2>Gênero musical</h2>
-      </div>
-
       <div className="search-box">
         <span aria-hidden="true">⌕</span>
         <input
