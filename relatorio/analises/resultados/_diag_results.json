@@ -1,0 +1,102 @@
+[
+  {
+    "file": "q9_smoke_test.nc",
+    "divergences": null,
+    "rhat_max": null,
+    "ess_bulk_min": 594.2473927018509,
+    "ess_tail_min": 574.2136559172991,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_baseline_gaussian.nc",
+    "divergences": 0,
+    "rhat_max": 1.0919595754889884,
+    "ess_bulk_min": 25.76269184334616,
+    "ess_tail_min": 43.1682336945004,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_baseline_bernoulli.nc",
+    "divergences": null,
+    "rhat_max": null,
+    "ess_bulk_min": 1289.1928262860242,
+    "ess_tail_min": 1271.8695394473611,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_extended_gaussian.nc",
+    "divergences": 0,
+    "rhat_max": 1.0162535125404568,
+    "ess_bulk_min": 123.99992850774869,
+    "ess_tail_min": 241.43637594879326,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_extended_bernoulli.nc",
+    "divergences": null,
+    "rhat_max": null,
+    "ess_bulk_min": 1207.2971814306998,
+    "ess_tail_min": 1167.744644427126,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_dropone_NO_GENRE_MULTI.nc",
+    "divergences": 0,
+    "rhat_max": 1.0253917686690832,
+    "ess_bulk_min": 124.55262482251648,
+    "ess_tail_min": 215.22786812744442,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_dropone_NO_KEY.nc",
+    "divergences": 0,
+    "rhat_max": 1.0246245906234368,
+    "ess_bulk_min": 134.49166487335168,
+    "ess_tail_min": 159.4670099812777,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_dropone_NO_KEY_SIN.nc",
+    "divergences": 0,
+    "rhat_max": 1.0221868451888294,
+    "ess_bulk_min": 101.39857195343258,
+    "ess_tail_min": 81.493548986914,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_dropone_NO_MODE.nc",
+    "divergences": 0,
+    "rhat_max": 1.0225028606217823,
+    "ess_bulk_min": 81.75138153483991,
+    "ess_tail_min": 120.42650955229944,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  },
+  {
+    "file": "q9_dropone_NO_TIME_SIG.nc",
+    "divergences": 0,
+    "rhat_max": 1.025171730956902,
+    "ess_bulk_min": 111.56219740706119,
+    "ess_tail_min": 150.4750217289871,
+    "pareto_k_max": "ERR: TypeError: log likelihood not found in inference data object",
+    "pareto_k_gt_07": null,
+    "pareto_k_gt_05": null
+  }
+]

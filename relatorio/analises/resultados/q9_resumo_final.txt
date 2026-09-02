@@ -1,0 +1,30 @@
+=== Q9 — Spotify Bayesian Analysis (Extended Features) ===
+Tracks processadas: 83,940
+Gêneros (G): 111
+Features Extended (K): 46
+
+--- Top-10 Global Effects (|mu_beta|) ---
+  feature_name   mu_beta    hdi_lo   hdi_hi
+        disney -3.077061 -7.726999 1.890469
+      cantopop -3.053922 -8.134294 1.435403
+      afrobeat -3.028187 -7.599443 1.414079
+        j-idol -3.027523 -7.907448 1.406826
+   black-metal -3.027111 -7.082647 1.105600
+   heavy-metal -2.978119 -7.400033 1.803777
+          club -2.966464 -7.594966 1.807873
+         malay -2.854681 -7.918614 1.767749
+detroit-techno -2.830507 -7.755514 1.663409
+     breakbeat -2.829590 -7.407603 2.241959
+
+--- Sigma_beta Baseline vs Extended (Redistribuição de Variância) ---
+         feature  sigma_beta_baseline  sigma_beta_extended  abs_delta_sigma
+    danceability             1.588240             1.560024         0.028216
+    acousticness             1.969506             1.941516         0.027990
+        explicit             4.226438             4.208120         0.018318
+           tempo             0.340370             0.357298         0.016929
+        loudness             3.517203             3.501914         0.015289
+         valence             1.417008             1.406386         0.010621
+     speechiness             1.272586             1.266570         0.006017
+        liveness             0.659094             0.656389         0.002705
+          energy             2.501365             2.501965         0.000599
+instrumentalness             2.036519             2.036760         0.000242

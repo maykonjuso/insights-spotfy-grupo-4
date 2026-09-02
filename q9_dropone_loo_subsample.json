@@ -1,0 +1,80 @@
+{
+  "n_sample": 2000,
+  "results": {
+    "extended": {
+      "elpd_loo_sub": -7951.225493763873,
+      "se_sub": 46.88625554460643,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6970642492453765,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.5227865234592597
+    },
+    "drop_NO_GENRE_MULTI": {
+      "elpd_loo_sub": -8408.133575097898,
+      "se_sub": 43.772230109882244,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6851475859993642,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.46350088796977185
+    },
+    "drop_NO_KEY": {
+      "elpd_loo_sub": -8440.64390996964,
+      "se_sub": 42.0594232274841,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6851475859993642,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.6449003707368153
+    },
+    "drop_NO_KEY_SIN": {
+      "elpd_loo_sub": -8390.38675554071,
+      "se_sub": 41.93864673116106,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6851475859993642,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.5781127704533549
+    },
+    "drop_NO_MODE": {
+      "elpd_loo_sub": -8409.232520887828,
+      "se_sub": 42.376175990902176,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6851475859993642,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.44939766503879525
+    },
+    "drop_NO_TIME_SIG": {
+      "elpd_loo_sub": -8432.369126523703,
+      "se_sub": 43.11637864600336,
+      "p_loo_sub": null,
+      "good_k_threshold": 0.6851475859993642,
+      "pareto_k_bad": 0,
+      "pareto_k_max": 0.4090088307609783
+    }
+  },
+  "deltas": {
+    "drop_NO_KEY": {
+      "delta": -489.41841620576724,
+      "elpd": -8440.64390996964,
+      "k_bad": 0
+    },
+    "drop_NO_TIME_SIG": {
+      "delta": -481.1436327598303,
+      "elpd": -8432.369126523703,
+      "k_bad": 0
+    },
+    "drop_NO_MODE": {
+      "delta": -458.0070271239556,
+      "elpd": -8409.232520887828,
+      "k_bad": 0
+    },
+    "drop_NO_GENRE_MULTI": {
+      "delta": -456.90808133402516,
+      "elpd": -8408.133575097898,
+      "k_bad": 0
+    },
+    "drop_NO_KEY_SIN": {
+      "delta": -439.1612617768378,
+      "elpd": -8390.38675554071,
+      "k_bad": 0
+    }
+  }
+}

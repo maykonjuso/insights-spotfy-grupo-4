@@ -1,0 +1,5 @@
+model,family,n_train,rmse_in_sample,mae_in_sample,brier_in_sample,log_loss_in_sample,accuracy_in_sample
+gaussian_baseline,gaussian,74925,13.08554594694209,9.15095356887456,,,
+gaussian_extended,gaussian,74925,13.015139404569743,9.07670299894385,,,
+bernoulli_baseline,bernoulli,83940,,,0.1222516127799619,0.37705973393223996,0.8206099594948773
+bernoulli_extended,bernoulli,83940,,,0.12166465846735763,0.374794466431115,0.8217893733619251
