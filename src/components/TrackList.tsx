@@ -1,6 +1,7 @@
 "use client";
 
 import { durationLabel } from "@/lib/insights";
+import { PlayButton } from "./PlayButton";
 
 export type TrackSummary = {
   id: string;
@@ -8,6 +9,7 @@ export type TrackSummary = {
   popularity?: number;
   duration_ms: number;
   explicit: boolean;
+  preview_url?: string | null;
   external_urls: { spotify: string };
   artists: { id: string; name: string }[];
   album: {
@@ -22,7 +24,7 @@ type TrackListProps = {
   tracks: TrackSummary[];
   isLoading: boolean;
   selectedTrackId?: string;
-  onSelectTrack: (track: TrackSummary) => void;
+  onSelectTrack: (track: TrackSummary, options?: { focusPlayer?: boolean }) => void;
 };
 
 function cover(track: TrackSummary) {
@@ -49,23 +51,33 @@ export function TrackList({ tracks, isLoading, selectedTrackId, onSelectTrack }:
             <p className="empty-state">Nenhuma faixa encontrada para esse gênero.</p>
           ) : (
             tracks.map((track, index) => (
-              <button
-                type="button"
+              <div
                 key={track.id}
                 className={`track-row ${selectedTrackId === track.id ? "is-selected" : ""}`}
-                onClick={() => onSelectTrack(track)}
               >
                 <span className="rank">{String(index + 1).padStart(2, "0")}</span>
-                {cover(track) ? <img src={cover(track)} alt={`Capa de ${track.album.name}`} /> : <span className="cover-fallback" />}
-                <span className="track-copy">
-                  <strong>{track.name}</strong>
-                  <span>{track.artists.map((artist) => artist.name).join(", ")}</span>
-                </span>
-                <span className="track-meta">
-                  <strong>{typeof track.popularity === "number" ? track.popularity : "N/D"}</strong>
-                  <span>{durationLabel(track.duration_ms)}</span>
-                </span>
-              </button>
+                <PlayButton
+                  sourceId={track.id}
+                  url={track.preview_url}
+                  title={track.name}
+                  onFallback={() => onSelectTrack(track, { focusPlayer: true })}
+                />
+                <button type="button" className="track-select" onClick={() => onSelectTrack(track)}>
+                  {cover(track) ? (
+                    <img src={cover(track)} alt={`Capa de ${track.album.name}`} />
+                  ) : (
+                    <span className="cover-fallback" />
+                  )}
+                  <span className="track-copy">
+                    <strong>{track.name}</strong>
+                    <span>{track.artists.map((artist) => artist.name).join(", ")}</span>
+                  </span>
+                  <span className="track-meta">
+                    <strong>{typeof track.popularity === "number" ? track.popularity : "N/D"}</strong>
+                    <span>{durationLabel(track.duration_ms)}</span>
+                  </span>
+                </button>
+              </div>
             ))
           )}
         </div>

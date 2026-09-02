@@ -75,7 +75,11 @@ export function SpotifyAnalyzer() {
     return () => controller.abort();
   }, [selectedGenre]);
 
-  async function handleSelectTrack(track: TrackSummary) {
+  async function handleSelectTrack(track: TrackSummary, options?: { focusPlayer?: boolean }) {
+    if (options?.focusPlayer) {
+      document.getElementById("analise")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     setIsLoadingInsight(true);
     setError(null);
     setSelectedTrack(localTrackDetails(track));
@@ -112,8 +116,8 @@ export function SpotifyAnalyzer() {
           <p className="eyebrow">Spotify Web API · análise de mercado musical</p>
           <h1>Descubra os indicativos de popularidade de uma música.</h1>
           <p>
-            Envie uma música própria para uma leitura técnica inicial ou selecione um gênero para comparar
-            referências do catálogo do Spotify em decisões de produção, curadoria e posicionamento.
+            Envie suas músicas para classificação automática de gênero e leitura técnica, ou selecione um gênero
+            para ouvir e comparar referências do catálogo do Spotify em decisões de produção e posicionamento.
           </p>
         </div>
 

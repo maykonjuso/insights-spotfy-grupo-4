@@ -29,3 +29,6 @@ data/musicbrainz/
 
 # Dataset GTZAN (audio, ~1.2 GB)
 data/gtzan/
+
+# Binario WASM copiado da essentia.js no pre-build
+public/essentia/

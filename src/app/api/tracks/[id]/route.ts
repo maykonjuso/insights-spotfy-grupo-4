@@ -8,6 +8,7 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 import { buildTrackInsight } from "@/lib/insights";
+import { resolvePreview } from "@/lib/preview-source";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -20,8 +21,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const track = await spotifyFetch<SpotifyTrack>(`/tracks/${id}?market=${spotifyMarket()}`);
     const features = await trySpotifyFetch<AudioFeatures>(`/audio-features/${id}`);
     const insight = buildTrackInsight(track, features);
+    const match = await resolvePreview(track);
+    const preview = match ? { source: match.source, label: match.label } : null;
 
-    return NextResponse.json({ track, features, insight });
+    return NextResponse.json({ track, features, insight, preview });
   } catch (error) {
     if (error instanceof SpotifyConfigError) {
       return NextResponse.json(

@@ -1,10 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { analyzeSamples } from "@/lib/audio-analysis";
+import { decodeAudioFile } from "@/lib/audio-decode";
+import type { AudioSummary } from "@/lib/audio-features";
+import type { EssentiaDescriptors } from "@/lib/essentia-analysis";
+import { modelInfo, type GenreScore } from "@/lib/genre-classifier";
 import { durationLabel } from "@/lib/insights";
+import { stopPlayback } from "@/lib/preview-player";
+import { buildSoundFeatures } from "@/lib/sound-features";
+import { PreviewPlayer } from "./PreviewPlayer";
+import { SoundFeatureGrid } from "./SoundFeatureGrid";
 
 type UploadResult = {
+  id: string;
   fileName: string;
+  objectUrl: string;
   score: number;
   label: string;
   tone: "low" | "mid" | "high";
@@ -14,8 +25,14 @@ type UploadResult = {
   dynamicRange: number;
   peak: number;
   clippedSamples: number;
+  tempo: number;
+  genres: GenreScore[];
+  descriptors: EssentiaDescriptors | null;
+  summary: AudioSummary | null;
   signals: string[];
 };
+
+const MODEL = modelInfo();
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
@@ -87,7 +104,9 @@ function analyzeChannel(channel: Float32Array, duration: number) {
   };
 }
 
-function buildUploadScore(result: Omit<UploadResult, "score" | "label" | "tone" | "signals">) {
+type ScoreInput = Pick<UploadResult, "durationMs" | "energy" | "dynamicRange" | "peak" | "clippedSamples">;
+
+function buildUploadScore(result: ScoreInput) {
   let score = 42;
   const signals: string[] = [];
   const minutes = result.durationMs / 60000;
@@ -148,103 +167,171 @@ function buildUploadScore(result: Omit<UploadResult, "score" | "label" | "tone" 
 
 export function UploadAnalyzer() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [result, setResult] = useState<UploadResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const objectUrls = useRef<string[]>([]);
+  const [results, setResults] = useState<UploadResult[]>([]);
+  const [pending, setPending] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // as URLs ficam num ref porque a limpeza roda so no unmount, quando o estado
+  // capturado no closure ja estaria desatualizado
+  useEffect(() => {
+    return () => {
+      stopPlayback();
+      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.current = [];
+    };
+  }, []);
+
   async function analyzeFile(file: File) {
-    setIsAnalyzing(true);
+    setPending(file.name);
     setError(null);
 
     try {
-      const audioContext = new AudioContext();
-      const buffer = await audioContext.decodeAudioData(await file.arrayBuffer());
-      await audioContext.close();
-      const channel = buffer.getChannelData(0);
-      const metrics = analyzeChannel(channel, buffer.duration);
-      const baseResult = {
-        fileName: file.name,
-        durationMs: buffer.duration * 1000,
-        ...metrics,
-      };
-      const scored = buildUploadScore(baseResult);
+      const { buffer, monoSamples } = await decodeAudioFile(file);
+      const metrics = analyzeChannel(buffer.getChannelData(0), buffer.duration);
+      const { classification, descriptors } = await analyzeSamples(monoSamples);
+      const base = { fileName: file.name, durationMs: buffer.duration * 1000, ...metrics };
+      const scored = buildUploadScore(base);
+      const objectUrl = URL.createObjectURL(file);
+      objectUrls.current.push(objectUrl);
 
-      setResult({
-        ...baseResult,
-        ...scored,
-      });
+      setResults((current) => [
+        {
+          id: `upload-${Date.now()}-${current.length}`,
+          objectUrl,
+          tempo: descriptors?.bpm ?? classification?.summary.tempo ?? 0,
+          // abaixo de 5s a janela nao sustenta uma leitura de genero
+          genres: classification && buffer.duration >= 5 ? classification.scores.slice(0, 3) : [],
+          descriptors,
+          summary: classification?.summary ?? null,
+          ...base,
+          ...scored,
+        },
+        ...current,
+      ]);
     } catch {
-      setError("Não consegui ler esse arquivo. Tente enviar um MP3, WAV, M4A ou OGG.");
-      setResult(null);
+      setError(`Não consegui ler "${file.name}". Tente enviar um MP3, WAV, M4A, OGG ou FLAC.`);
     } finally {
-      setIsAnalyzing(false);
+      setPending(null);
     }
+  }
+
+  async function analyzeFiles(files: FileList | File[]) {
+    for (const file of Array.from(files)) {
+      await analyzeFile(file);
+    }
+  }
+
+  function clearResults() {
+    stopPlayback();
+    objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrls.current = [];
+    setResults([]);
+    setError(null);
   }
 
   return (
     <section className="panel upload-panel">
       <div className="section-heading">
         <p>Upload</p>
-        <h2>Analisar música inédita</h2>
+        <h2>Enviar e classificar música</h2>
       </div>
 
-      <div className="upload-dropzone" onClick={() => inputRef.current?.click()}>
+      <div
+        className={`upload-dropzone ${isDragging ? "is-dragging" : ""}`}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          if (event.dataTransfer.files.length) void analyzeFiles(event.dataTransfer.files);
+        }}
+      >
         <input
           ref={inputRef}
           type="file"
+          multiple
           accept="audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac"
           onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void analyzeFile(file);
+            const files = event.target.files;
+            if (files?.length) void analyzeFiles(files);
+            event.target.value = "";
           }}
         />
-        <span>Enviar arquivo de áudio</span>
-        <strong>MP3, WAV, M4A, OGG ou FLAC</strong>
+        <span>Arraste ou selecione seus áudios</span>
+        <strong>MP3, WAV, M4A, OGG ou FLAC · várias de uma vez</strong>
       </div>
 
-      {isAnalyzing ? <p className="insight-loading">Analisando energia, duração e dinâmica da música...</p> : null}
+      <p className="upload-note">
+        Gêneros reconhecidos: {MODEL.genres.join(", ")} — os {MODEL.genres.length} do {MODEL.source}, com{" "}
+        {Math.round(MODEL.accuracy * 100)}% de acurácia em validação cruzada contra {Math.round(MODEL.baseline * 100)}%
+        do acaso. O conjunto é norte-americano e não tem gêneros brasileiros: sertanejo cai em country, MPB costuma
+        cair em jazz ou blues e funk em hip-hop. Tom, BPM, dançabilidade e loudness vêm da Essentia em WebAssembly.
+        Tudo roda no seu navegador: nenhum áudio é enviado para servidor.
+      </p>
+
+      {pending ? <p className="insight-loading">Analisando &ldquo;{pending}&rdquo;: espectro, ritmo e dinâmica...</p> : null}
       {error ? <p className="error-banner">{error}</p> : null}
 
-      {result ? (
-        <div className="upload-result">
-          <div className={`upload-score ${result.tone}`}>
-            <span>{result.score}</span>
-            <strong>{result.label}</strong>
-            <small>{result.fileName}</small>
-          </div>
+      {results.length > 0 ? (
+        <div className="upload-results">
+          <button type="button" className="upload-clear" onClick={clearResults}>
+            Limpar {results.length} análise{results.length > 1 ? "s" : ""}
+          </button>
 
-          <div className="metrics-grid">
-            <div>
-              <span>Duração</span>
-              <strong>{durationLabel(result.durationMs)}</strong>
-            </div>
-            <div>
-              <span>Energia</span>
-              <strong>{metricPercent(result.energy)}</strong>
-            </div>
-            <div>
-              <span>Loudness</span>
-              <strong>{db(result.loudnessDb)}</strong>
-            </div>
-            <div>
-              <span>Dinâmica</span>
-              <strong>{metricPercent(result.dynamicRange)}</strong>
-            </div>
-            <div>
-              <span>Pico</span>
-              <strong>{metricPercent(result.peak)}</strong>
-            </div>
-            <div>
-              <span>Clipping</span>
-              <strong>{result.clippedSamples}</strong>
-            </div>
-          </div>
+          {results.map((result) => (
+            <div className="upload-result" key={result.id}>
+              <div className={`upload-score ${result.tone}`}>
+                <span>{result.score}</span>
+                <strong>{result.label}</strong>
+                <small>{result.fileName}</small>
+              </div>
 
-          <div className="signal-list">
-            {result.signals.map((signal) => (
-              <p key={signal}>{signal}</p>
-            ))}
-          </div>
+              <PreviewPlayer
+                sourceId={result.id}
+                url={result.objectUrl}
+                title={result.fileName}
+                caption="Sua faixa, tocada localmente"
+              />
+
+              {result.genres.length > 0 ? (
+                <div className="genre-result">
+                  <p className="album-label">Gênero provável</p>
+                  {result.genres.map((genre, index) => (
+                    <div className={`genre-bar ${index === 0 ? "is-top" : ""}`} key={genre.genre}>
+                      <span>{genre.label}</span>
+                      <div>
+                        <i style={{ width: `${Math.round(genre.probability * 100)}%` }} />
+                      </div>
+                      <strong>{Math.round(genre.probability * 100)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="upload-note">Áudio curto demais (menos de 5s) para classificar o gênero.</p>
+              )}
+
+              <SoundFeatureGrid
+                groups={buildSoundFeatures({
+                  summary: result.summary,
+                  descriptors: result.descriptors,
+                  durationMs: result.durationMs,
+                  clippedSamples: result.clippedSamples,
+                })}
+              />
+
+              <div className="signal-list">
+                {result.signals.map((signal) => (
+                  <p key={signal}>{signal}</p>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : null}
     </section>

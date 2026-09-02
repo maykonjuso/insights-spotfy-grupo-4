@@ -1,13 +1,23 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { buildTrackInsight, durationLabel } from "@/lib/insights";
+import { currentSourceId, stopPlayback } from "@/lib/preview-player";
 import type { AudioFeatures, SpotifyTrack } from "@/lib/spotify";
 import type { TrackSummary } from "./TrackList";
+import { PreviewPlayer } from "./PreviewPlayer";
+import { SpotifyEmbed } from "./SpotifyEmbed";
+import { TrackScanner } from "./TrackScanner";
+
+export type PreviewInfo = {
+  source: "spotify" | "itunes";
+  label: string;
+};
 
 export type TrackDetails = {
   track: SpotifyTrack;
   features: AudioFeatures | null;
+  preview?: PreviewInfo | null;
   insight: {
     score: number;
     label: string;
@@ -37,13 +47,20 @@ export function PopularityInsights({ details, fallbackTrack, isLoading }: Popula
   const track = details?.track || fallbackTrack;
   const features = details?.features;
   const insight = details?.insight;
+  const preview = details?.preview;
   const image = artwork(track);
   const score = insight?.score ?? (track ? buildTrackInsight(track, null).score : 0);
   const scoreStyle = { "--score": score } as CSSProperties;
   const popularityLabel = typeof track?.popularity === "number" ? String(track.popularity) : "Não disponível";
+  const trackId = track?.id;
+
+  // trocar de faixa corta a previa anterior; continuar a mesma faixa nao.
+  useEffect(() => {
+    if (trackId && currentSourceId() && currentSourceId() !== trackId) stopPlayback();
+  }, [trackId]);
 
   return (
-    <aside className="insight-card">
+    <aside className="insight-card" id="analise">
       <div className="section-heading">
         <p>Etapa 3</p>
         <h2>Análise de popularidade</h2>
@@ -65,6 +82,19 @@ export function PopularityInsights({ details, fallbackTrack, isLoading }: Popula
               <p>{track.artists.map((artist) => artist.name).join(", ")}</p>
             </div>
           </div>
+
+          {preview ? (
+            <PreviewPlayer
+              sourceId={track.id}
+              url={`/api/preview/${track.id}`}
+              title={track.name}
+              caption={preview.label}
+            />
+          ) : null}
+
+          <SpotifyEmbed trackId={track.id} trackName={track.name} />
+
+          <TrackScanner trackId={track.id} trackName={track.name} hasAudio={Boolean(preview)} />
 
           <div className={`score-ring ${insight?.tone || "mid"}`} style={scoreStyle}>
             <span>{score}</span>
