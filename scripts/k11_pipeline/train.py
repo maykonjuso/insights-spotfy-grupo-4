@@ -30,19 +30,56 @@ Saídas em artifacts/:
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
+# --- 0) Configuracao de CPU via env vars (ANTES de qualquer import jax/numpyro) ---
+# Variaveis reconhecidas (todas opcionais):
+#   K11_HOST_DEVICES : numero de chains em paralelo (default: max = os.cpu_count())
+#                      No CPU, isso simula N devices no JAX. Cada chain roda em
+#                      1 OMP thread por padrao, mas pode usar mais com K11_OMP_THREADS.
+#                      Exemplo: K11_HOST_DEVICES=8 -> 8 chains em paralelo no Ryzen 7.
+#   K11_OMP_THREADS  : OpenMP threads por chain (default: 1 = sem paralelismo intra-chain)
+#                      Exemplo: K11_OMP_THREADS=2 com K11_HOST_DEVICES=8 = 16 threads total.
+#   K11_PLATFORM     : 'cpu' (forca CPU) ou 'cuda' (forca GPU NVIDIA). Default: auto.
+#
+# Combinacoes comuns para CPU:
+#   Max throughput (8 chains, 1 thread cada):  K11_HOST_DEVICES=8  K11_OMP_THREADS=1
+#   Max threads  (4 chains, 2 threads cada):   K11_HOST_DEVICES=4  K11_OMP_THREADS=2
+#   Conservador (6 chains, 1 thread, 2 livres): K11_HOST_DEVICES=6 K11_OMP_THREADS=1
+_HOST_DEVICES = int(os.environ.get("K11_HOST_DEVICES", "0"))  # 0 = max
+_OMP_THREADS = int(os.environ.get("K11_OMP_THREADS", "0"))  # 0 = nao setar
+if _OMP_THREADS > 0:
+    os.environ["OMP_NUM_THREADS"] = str(_OMP_THREADS)
+    os.environ["MKL_NUM_THREADS"] = str(_OMP_THREADS)
+
 # --- 1) Backend NumPyro em GPU (T4). Deve vir ANTES de import pymc. -----
 import numpyro  # noqa: E402
-numpyro.set_platform("cuda")  # T4/A100/V100 NVIDIA; use "cpu" para CPU-only
+_platform_env = os.environ.get("K11_PLATFORM", "").strip().lower()
+if _platform_env == "cpu":
+    numpyro.set_platform("cpu")
+else:
+    # Auto-detect: cuda se disponivel, senao cpu
+    try:
+        numpyro.set_platform("cuda")
+    except Exception:
+        numpyro.set_platform("cpu")
 
-# Habilita 4 chains em paralelo mesmo em CPU (T4 so tem 1 device -- sequencial).
-# Em GPU com 1 device, esta chamada e ignorada. Em CPU, simula 4 cores.
+# Habilita N chains em paralelo no CPU (T4 tem so 1 device, sequencial).
 try:
     import jax
     if jax.default_backend() == "cpu":
-        numpyro.set_host_device_count(4)
+        # Maximo: usa os.cpu_count() chains (cada uma 1 OMP thread)
+        n_devices = _HOST_DEVICES if _HOST_DEVICES > 0 else (os.cpu_count() or 4)
+        numpyro.set_host_device_count(n_devices)
+        n_threads = _OMP_THREADS if _OMP_THREADS > 0 else 1
+        print(
+            f"[config] CPU mode: {n_devices} chains paralelas x {n_threads} threads/chain "
+            f"= {n_devices * n_threads} threads total "
+            f"(os.cpu_count() reporta {os.cpu_count()} logical cores)",
+            flush=True,
+        )
 except Exception:
     pass
 
@@ -342,7 +379,13 @@ def fit_and_persist(
     pm.sample, ANTES de qualquer diagnostico. Se az.summary ou qualquer
     coisa depois explodir, o fit NAO se perde.
     """
-    print(f"[6/8] Ajustando NUTS (numpyro, {chains} chains, draws={draws}, tune={tune}) ...", flush=True)
+    total_iters = (tune + draws) * chains
+    print(
+        f"[6/8] Ajustando NUTS (numpyro, {chains} chains x {tune} tune + {draws} draws "
+        f"= {total_iters:,} iteracoes totais) ...",
+        flush=True,
+    )
+    print(f"      [progress] barra tqdm abaixo mostra cada chain em tempo real", flush=True)
     t0 = time.time()
 
     with model:
@@ -353,11 +396,19 @@ def fit_and_persist(
             nuts_sampler="numpyro",
             target_accept=0.9,
             random_seed=SEED,
-            progressbar=False,
+            progressbar=True,  # barra de progresso por chain
         )
 
     elapsed_min = (time.time() - t0) / 60.0
-    print(f"[7/8] Fit concluído em {elapsed_min:.2f} min.", flush=True)
+    elapsed_sec = time.time() - t0
+    print(f"[7/8] Fit concluído em {elapsed_min:.2f} min ({elapsed_sec:.0f}s).", flush=True)
+    if chains > 1:
+        per_chain_min = elapsed_min / chains
+        print(
+            f"      ~{per_chain_min:.2f} min por chain, "
+            f"{elapsed_sec / total_iters:.3f}s por iteracao",
+            flush=True,
+        )
 
     # ----- CHECKPOINT CRITICO: salvar o posterior AGORA -----
     # Antes de qualquer diagnostico, persistir o fit em disco.
@@ -542,7 +593,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="K=11 Bayesian hierarchical training.")
     parser.add_argument("--draws", type=int, default=1000, help="samples por chain")
     parser.add_argument("--tune", type=int, default=1500, help="warmup iterations")
-    parser.add_argument("--chains", type=int, default=4, help="numero de chains")
+    # Default de --chains: 4 em geral, ou o valor de K11_HOST_DEVICES se setado.
+    _default_chains = _HOST_DEVICES if _HOST_DEVICES > 0 else 4
+    parser.add_argument(
+        "--chains", type=int, default=_default_chains,
+        help=f"numero de chains (default: {_default_chains})",
+    )
     parser.add_argument(
         "--out-dir", type=Path, default=None,
         help="diretorio de saida (default: artifacts/)",
