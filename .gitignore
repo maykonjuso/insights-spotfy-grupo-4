@@ -38,3 +38,10 @@ q9_*.npy
 
 # Q9 posteriors NetCDF (~1.1 GB, regeneráveis rodando o notebook)
 q9_*.nc
+
+# K=11 posterior bruto NetCDF (~250 MB, regenerável via scripts/train_k11.py).
+# A versao consumida pelo Next.js e o JSON compacto gerado por
+# scripts/export_for_nextjs.py (artifacts/k11_posterior_summary.json e
+# artifacts/k11_posterior_samples.json.gz), esses sim versionados.
+artifacts/k11_posterior.nc
+artifacts/split_indices.npz

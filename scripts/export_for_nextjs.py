@@ -272,7 +272,7 @@ def build_summary(
 def build_samples(idata: az.InferenceData) -> dict:
     """Empilha chain+draw, sorteia 1000 índices sem reposição, serializa."""
     print("[3/4] Empilhando chains e sub-amostrando 1000 samples ...", flush=True)
-    post = idata.posterior
+    post = idata.posterior.to_dataset()
     stacked = post.stack(sample=("chain", "draw"))  # dims: sample, ...
 
     n_total = int(stacked.sizes["sample"])

@@ -2,7 +2,10 @@
 train_k11.py — Treino do modelo Bayesiano hierárquico K=11 (Q8/Q9).
 
 Pipeline:
-  1. Configura NumPyro em GPU (T4) com JAX.
+  1. Configura NumPyro em CPU com JAX (4 chains em paralelo; neste modelo a
+     arvore NUTS bate no teto de profundidade quase toda iteracao, o que faz
+     a CPU superar uma GPU unica por nao ter overhead de disparo de kernel
+     por passo de leapfrog).
   2. Carrega parquet limpo, filtra gêneros não-musicais.
   3. Constrói features K=11 (10 contínuas/binárias + mode_bin).
   4. Z-score nas contínuas, log1p em popularity.
@@ -33,9 +36,16 @@ import json
 import time
 from pathlib import Path
 
-# --- 1) Backend NumPyro em GPU (T4). Deve vir ANTES de import pymc. -----
+# --- 1) Backend NumPyro em CPU. Deve vir ANTES de import pymc. -----
+# Neste modelo a arvore NUTS bate no teto de profundidade (1023 passos) quase
+# toda iteracao; cada passo de leapfrog e uma operacao minuscula, entao numa
+# GPU unica (sequencial, 1 chain por vez) o overhead de disparo de kernel
+# domina e o treino leva ~6-7h. Na CPU as 4 chains rodam em paralelo de
+# verdade (sem esse overhead), reduzindo para ~1,5-2h. Ver benchmark que
+# comparou os dois backends antes de trocar.
 import numpyro  # noqa: E402
-numpyro.set_platform("gpu")
+numpyro.set_platform("cpu")
+numpyro.set_host_device_count(4)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -303,13 +313,14 @@ def fit_and_persist(
 
     with model:
         idata = pm.sample(
-            draws=1000,
+            draws=3000,
             tune=1500,
             chains=4,
             nuts_sampler="numpyro",
+            nuts_sampler_kwargs={"chain_method": "parallel"},
             target_accept=0.9,
             random_seed=SEED,
-            progressbar=False,
+            progressbar=True,
         )
 
     elapsed_min = (time.time() - t0) / 60.0
@@ -367,7 +378,7 @@ def fit_and_persist(
 def main() -> None:
     print("=" * 70, flush=True)
     print("train_k11 — Modelo Bayesiano Hierárquico K=11", flush=True)
-    print(f"SEED={SEED} | K={len(K11_FEATS)} | backend=numpyro/gpu", flush=True)
+    print(f"SEED={SEED} | K={len(K11_FEATS)} | backend=numpyro/cpu (4 chains paralelas)", flush=True)
     print("=" * 70, flush=True)
 
     df = load_and_filter(DATA_PATH)
