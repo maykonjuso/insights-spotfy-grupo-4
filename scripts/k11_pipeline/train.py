@@ -182,6 +182,9 @@ def make_scaler_and_arrays(
 ):
     """Padroniza contínuas, mantém binárias como int, log1p no target.
 
+    NAO faz I/O. Retorna apenas dados; o salvamento dos artefatos em disco
+    e responsabilidade de main() (com o out_dir correto).
+
     Retorna:
       X (np.float32, shape N x 11) já padronizada,
       y_log (np.float32, shape N) = log(popularity + 1),
@@ -215,9 +218,6 @@ def make_scaler_and_arrays(
     genero_cats = sorted(df["genero_principal"].astype(str).unique().tolist())
     print(f"      X.shape={X.shape}, y_log.shape={y_log.shape}", flush=True)
     print(f"      #generos: {len(genero_cats)}", flush=True)
-    # CHECKPOINT: salva scaler/feature_names/genero_cats IMEDIATAMENTE.
-    # Se o NUTS explodir depois, ja temos o preprocessing em disco.
-    _save_side_artifacts(scaler, genero_cats, ARTIFACTS_DIR)
     return X, y_log, scaler, genero_cats
 
 
@@ -469,10 +469,14 @@ def main(
     try:
         df = load_and_filter(DATA_PATH)
         df = build_k11(df)
-        # make_scaler_and_arrays() faz checkpoint dos side artifacts.
+        # make_scaler_and_arrays() NAO faz I/O -- apenas computa.
         X, y_log, scaler, genero_cats = make_scaler_and_arrays(df)
 
-        # Split + indices (tambem salva split_indices.npz).
+        # CHECKPOINT: salva side artifacts no out_dir CORRETO.
+        # (Nao dentro de make_scaler_and_arrays() para respeitar --out-dir.)
+        _save_side_artifacts(scaler, genero_cats, out_dir)
+
+        # Split + indices (tambem salva split_indices.npz em out_dir).
         split_path = out_dir / "split_indices.npz"
         train_idx, val_idx, test_idx = split_indices(len(df), split_path)
 
