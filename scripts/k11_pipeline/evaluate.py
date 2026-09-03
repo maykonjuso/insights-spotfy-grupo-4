@@ -340,166 +340,205 @@ def _write_metrics_csv(path: Path, metrics: dict[str, float]) -> None:
     df.to_csv(path, index=False)
 
 
-def main() -> None:
+def main(artifacts_dir: Path | None = None) -> None:
+    """Pipeline de avaliacao com checkpoint saving.
+
+    Args:
+        artifacts_dir: diretorio onde train.py salvou os artefatos.
+                       Se None, usa ARTIFACTS_DIR (default: ./artifacts).
+    """
+    if artifacts_dir is None:
+        artifacts_dir = ARTIFACTS_DIR
+    artifacts_dir = Path(artifacts_dir)
+
     print("=" * 70, flush=True)
     print("evaluate_k11 — Avaliação offline K=11 (Val + Test)", flush=True)
     print(
-        f"SEED={SEED} | n_samples={N_POSTERIOR_SAMPLES} | HDI={HDI_PROB:.0%}",
+        f"SEED={SEED} | n_samples={N_POSTERIOR_SAMPLES} | HDI={HDI_PROB:.0%} | "
+        f"artifacts={artifacts_dir.name}",
         flush=True,
     )
     print("=" * 70, flush=True)
 
-    # --- Carregamento + pré-processamento espelhado do treino ---
-    df = load_and_filter(DATA_PATH)
-    df = build_k11(df)
-
-    scaler_path = ARTIFACTS_DIR / "scaler.json"
-    cats_path = ARTIFACTS_DIR / "genero_cats.json"
-    posterior_path = ARTIFACTS_DIR / "k11_posterior.nc"
-    split_path = ARTIFACTS_DIR / "split_indices.npz"
-
-    X = apply_scaler(df, scaler_path)
-    y_pop = df["popularity"].to_numpy().astype(np.float32)
-    y_log = np.log(y_pop + 1.0).astype(np.float32)
-
-    with cats_path.open("r", encoding="utf-8") as f:
-        genero_cats: list[str] = json.load(f)
-    genero_to_idx = {g: i for i, g in enumerate(genero_cats)}
-    g_idx = (
-        df["genero_principal"].astype(str).map(genero_to_idx).to_numpy().astype("int32")
-    )
-
-    # Garante que nenhum gênero do df limpo ficou fora de genero_cats.
-    unknown = int((g_idx < 0).sum())
-    assert unknown == 0, f"{unknown} faixas têm gênero fora de genero_cats.json"
-
-    # --- Splits ---
-    split = np.load(split_path)
-    train_idx = split["train_idx"]
-    val_idx = split["val_idx"]
-    test_idx = split["test_idx"]
-    assert len(set(train_idx.tolist()) & set(val_idx.tolist())) == 0, "overlap train/val"
-    assert len(set(train_idx.tolist()) & set(test_idx.tolist())) == 0, "overlap train/test"
-    assert len(set(val_idx.tolist()) & set(test_idx.tolist())) == 0, "overlap val/test"
-    print(
-        f"      splits: train={len(train_idx):,} | val={len(val_idx):,} "
-        f"| test={len(test_idx):,}",
-        flush=True,
-    )
-
-    # --- Carrega posterior ---
-    print(f"[4/6] Carregando posterior {posterior_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
-    idata = az.from_netcdf(posterior_path)
-    alpha_g_s, beta_g_s = sample_posterior(idata, N_POSTERIOR_SAMPLES, SEED)
-
-    # --- Predição em Val e Test (pipeline idêntica) ---
-    print("[5/6] Predição em Val e Test ...", flush=True)
-    X_val, g_val, y_val = X[val_idx], g_idx[val_idx], y_pop[val_idx]
-    X_test, g_test, y_test = X[test_idx], g_idx[test_idx], y_pop[test_idx]
-
-    y_pred_val = predict_posterior_popularity(alpha_g_s, beta_g_s, X_val, g_val)
-    y_pred_test = predict_posterior_popularity(alpha_g_s, beta_g_s, X_test, g_test)
-
-    # --- Métricas ---
-    val_metrics = compute_global_metrics(y_pred_val, y_val)
-    test_metrics = compute_global_metrics(y_pred_test, y_test)
-
-    print(f"      Val  RMSE={val_metrics['rmse']:.3f}  "
-          f"MAE={val_metrics['mae']:.3f}  R²={val_metrics['r2']:.3f}  "
-          f"log-RMSE={val_metrics['log_rmse']:.3f}  "
-          f"HDI94={val_metrics['hdi_94_coverage']:.3f}", flush=True)
-    print(f"      Test RMSE={test_metrics['rmse']:.3f}  "
-          f"MAE={test_metrics['mae']:.3f}  R²={test_metrics['r2']:.3f}  "
-          f"log-RMSE={test_metrics['log_rmse']:.3f}  "
-          f"HDI94={test_metrics['hdi_94_coverage']:.3f}", flush=True)
-
-    # --- Per-gênero (top 10 em Test) ---
-    y_pred_test_mean = y_pred_test.mean(axis=0)
-    per_genre_df = compute_per_genre_top10(y_pred_test_mean, y_test, g_test, genero_cats)
-    print("      Per-gênero (Test, top 10):", flush=True)
-    for _, row in per_genre_df.iterrows():
-        print(
-            f"        {row['genero']:24s} n={int(row['n']):5d}  "
-            f"RMSE={row['rmse']:.3f}  MAE={row['mae']:.3f}",
-            flush=True,
-        )
-
-    # --- Calibração (Test) ---
-    calib_df, ece = compute_calibration(y_pred_test_mean, y_test, n_bins=10)
-    print(f"      ECE (Test) = {ece:.4f}", flush=True)
-
-    # --- Asserts ---
-    assertions_passed = True
     try:
-        run_asserts(test_metrics)
-        print("[6/6] Asserts OK", flush=True)
-    except AssertionError as exc:
-        assertions_passed = False
-        print(f"[6/6] ASSERT VIOLADO: {exc}", flush=True)
+        # --- Carregamento + pré-processamento espelhado do treino ---
+        df = load_and_filter(DATA_PATH)
+        df = build_k11(df)
 
-    # --- Persistência ---
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        scaler_path = artifacts_dir / "scaler.json"
+        cats_path = artifacts_dir / "genero_cats.json"
+        posterior_path = artifacts_dir / "k11_posterior.nc"
+        split_path = artifacts_dir / "split_indices.npz"
 
-    val_csv = RESULTS_DIR / "q11_val_metrics.csv"
-    test_csv = RESULTS_DIR / "q11_test_metrics.csv"
-    per_genre_csv = RESULTS_DIR / "q11_per_genre.csv"
-    calib_csv = RESULTS_DIR / "q11_calibration.csv"
-    summary_json = RESULTS_DIR / "q11_summary.json"
+        X = apply_scaler(df, scaler_path)
+        y_pop = df["popularity"].to_numpy().astype(np.float32)
+        y_log = np.log(y_pop + 1.0).astype(np.float32)
 
-    _write_metrics_csv(val_csv, val_metrics)
-    _write_metrics_csv(test_csv, test_metrics)
-    per_genre_df.to_csv(per_genre_csv, index=False)
-    calib_df.to_csv(calib_csv, index=False)
+        with cats_path.open("r", encoding="utf-8") as f:
+            genero_cats: list[str] = json.load(f)
+        genero_to_idx = {g: i for i, g in enumerate(genero_cats)}
+        g_idx = (
+            df["genero_principal"].astype(str).map(genero_to_idx).to_numpy().astype("int32")
+        )
 
-    summary = {
-        "val": val_metrics,
-        "test": test_metrics,
-        "per_genre_top10_test": per_genre_df.to_dict(orient="records"),
-        "calibration_test": {
-            "ece": ece,
-            "bins": calib_df.to_dict(orient="records"),
-        },
-        "n_posterior_samples": int(N_POSTERIOR_SAMPLES),
-        "hdi_prob": HDI_PROB,
-        "assertions_passed": bool(assertions_passed),
-        "assertions": {
-            "test_rmse_max": TEST_RMSE_MAX,
-            "test_r2_min": TEST_R2_MIN,
-            "hdi_coverage_range": [HDI_COVERAGE_LO, HDI_COVERAGE_HI],
-            "passed": bool(assertions_passed),
-        },
-        "splits": {
-            "n_val": int(len(val_idx)),
-            "n_test": int(len(test_idx)),
-        },
-    }
-    with summary_json.open("w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False)
+        # Garante que nenhum gênero do df limpo ficou fora de genero_cats.
+        unknown = int((g_idx < 0).sum())
+        assert unknown == 0, f"{unknown} faixas têm gênero fora de genero_cats.json"
 
-    print("", flush=True)
-    print("=" * 70, flush=True)
-    print("ARTEFATOS SALVOS", flush=True)
-    print(f"  {val_csv.relative_to(PIPELINE_ROOT)}", flush=True)
-    print(f"  {test_csv.relative_to(PIPELINE_ROOT)}", flush=True)
-    print(f"  {per_genre_csv.relative_to(PIPELINE_ROOT)}", flush=True)
-    print(f"  {calib_csv.relative_to(PIPELINE_ROOT)}", flush=True)
-    print(f"  {summary_json.relative_to(PIPELINE_ROOT)}", flush=True)
-    print(f"  assertions_passed = {assertions_passed}", flush=True)
-    print("=" * 70, flush=True)
-
-    # Asserts viram exit code nao-zero se falharem (CI-friendly), mas NAO
-    # levantam excecao: o summary.json ja foi salvo, e o usuario precisa
-    # dos dados para decidir se re-treina.
-    if not assertions_passed:
-        import sys
+        # --- Splits ---
+        split = np.load(split_path)
+        train_idx = split["train_idx"]
+        val_idx = split["val_idx"]
+        test_idx = split["test_idx"]
+        assert len(set(train_idx.tolist()) & set(val_idx.tolist())) == 0, "overlap train/val"
+        assert len(set(train_idx.tolist()) & set(test_idx.tolist())) == 0, "overlap train/test"
+        assert len(set(val_idx.tolist()) & set(test_idx.tolist())) == 0, "overlap val/test"
         print(
-            f"  [WARN] assertions FALHARAM (RMSE={test_metrics['rmse']:.4f}, "
-            f"R²={test_metrics['r2']:.4f}, HDI94={test_metrics['hdi_94_coverage']:.4f}). "
-            f"q11_summary.json foi salvo mesmo assim.",
+            f"      splits: train={len(train_idx):,} | val={len(val_idx):,} "
+            f"| test={len(test_idx):,}",
             flush=True,
         )
-        sys.exit(2)
+
+        # --- Carrega posterior ---
+        print(f"[4/6] Carregando posterior {posterior_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
+        idata = az.from_netcdf(posterior_path)
+        alpha_g_s, beta_g_s = sample_posterior(idata, N_POSTERIOR_SAMPLES, SEED)
+
+        # --- Predição em Val e Test (pipeline idêntica) ---
+        print("[5/6] Predição em Val e Test ...", flush=True)
+        X_val, g_val, y_val = X[val_idx], g_idx[val_idx], y_pop[val_idx]
+        X_test, g_test, y_test = X[test_idx], g_idx[test_idx], y_pop[test_idx]
+
+        y_pred_val = predict_posterior_popularity(alpha_g_s, beta_g_s, X_val, g_val)
+        y_pred_test = predict_posterior_popularity(alpha_g_s, beta_g_s, X_test, g_test)
+
+        # --- Métricas globais ---
+        val_metrics = compute_global_metrics(y_pred_val, y_val)
+        test_metrics = compute_global_metrics(y_pred_test, y_test)
+
+        print(f"      Val  RMSE={val_metrics['rmse']:.3f}  "
+              f"MAE={val_metrics['mae']:.3f}  R²={val_metrics['r2']:.3f}  "
+              f"log-RMSE={val_metrics['log_rmse']:.3f}  "
+              f"HDI94={val_metrics['hdi_94_coverage']:.3f}", flush=True)
+        print(f"      Test RMSE={test_metrics['rmse']:.3f}  "
+              f"MAE={test_metrics['mae']:.3f}  R²={test_metrics['r2']:.3f}  "
+              f"log-RMSE={test_metrics['log_rmse']:.3f}  "
+              f"HDI94={test_metrics['hdi_94_coverage']:.3f}", flush=True)
+
+        # CHECKPOINT: salvar metricas globais AGORA, antes de per-genre/calibration.
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        val_csv = RESULTS_DIR / "q11_val_metrics.csv"
+        test_csv = RESULTS_DIR / "q11_test_metrics.csv"
+        _write_metrics_csv(val_csv, val_metrics)
+        _write_metrics_csv(test_csv, test_metrics)
+        print(f"      [checkpoint] {val_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+        print(f"      [checkpoint] {test_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+
+        # --- Per-gênero (top 10 em Test) ---
+        y_pred_test_mean = y_pred_test.mean(axis=0)
+        per_genre_df = compute_per_genre_top10(y_pred_test_mean, y_test, g_test, genero_cats)
+        print("      Per-gênero (Test, top 10):", flush=True)
+        for _, row in per_genre_df.iterrows():
+            print(
+                f"        {row['genero']:24s} n={int(row['n']):5d}  "
+                f"RMSE={row['rmse']:.3f}  MAE={row['mae']:.3f}",
+                flush=True,
+            )
+
+        per_genre_csv = RESULTS_DIR / "q11_per_genre.csv"
+        per_genre_df.to_csv(per_genre_csv, index=False)
+        print(f"      [checkpoint] {per_genre_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+
+        # --- Calibração (Test) ---
+        calib_df, ece = compute_calibration(y_pred_test_mean, y_test, n_bins=10)
+        print(f"      ECE (Test) = {ece:.4f}", flush=True)
+        calib_csv = RESULTS_DIR / "q11_calibration.csv"
+        calib_df.to_csv(calib_csv, index=False)
+        print(f"      [checkpoint] {calib_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+
+        # --- Asserts (warnings, nao levanta) ---
+        assertions_passed = True
+        try:
+            run_asserts(test_metrics)
+            print("[6/6] Asserts OK", flush=True)
+        except AssertionError as exc:
+            assertions_passed = False
+            print(f"[6/6] ASSERT VIOLADO: {exc}", flush=True)
+
+        # CHECKPOINT FINAL: salvar summary.json (sempre).
+        summary_json = RESULTS_DIR / "q11_summary.json"
+        summary = {
+            "val": val_metrics,
+            "test": test_metrics,
+            "per_genre_top10_test": per_genre_df.to_dict(orient="records"),
+            "calibration_test": {
+                "ece": ece,
+                "bins": calib_df.to_dict(orient="records"),
+            },
+            "n_posterior_samples": int(N_POSTERIOR_SAMPLES),
+            "hdi_prob": HDI_PROB,
+            "assertions_passed": bool(assertions_passed),
+            "assertions": {
+                "test_rmse_max": TEST_RMSE_MAX,
+                "test_r2_min": TEST_R2_MIN,
+                "hdi_coverage_range": [HDI_COVERAGE_LO, HDI_COVERAGE_HI],
+                "passed": bool(assertions_passed),
+            },
+            "splits": {
+                "n_val": int(len(val_idx)),
+                "n_test": int(len(test_idx)),
+            },
+        }
+        with summary_json.open("w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+        print(f"      [checkpoint] {summary_json.relative_to(PIPELINE_ROOT)}", flush=True)
+
+        print("", flush=True)
+        print("=" * 70, flush=True)
+        print("ARTEFATOS SALVOS", flush=True)
+        for p in [val_csv, test_csv, per_genre_csv, calib_csv, summary_json]:
+            print(f"  {p.relative_to(PIPELINE_ROOT)}", flush=True)
+        print(f"  assertions_passed = {assertions_passed}", flush=True)
+        print("=" * 70, flush=True)
+
+        # Exit code != 0 se assertions falharem (CI-friendly), mas
+        # NAO levanta excecao: o summary.json ja foi salvo.
+        if not assertions_passed:
+            import sys
+            print(
+                f"  [WARN] assertions FALHARAM (RMSE={test_metrics['rmse']:.4f}, "
+                f"R²={test_metrics['r2']:.4f}, HDI94={test_metrics['hdi_94_coverage']:.4f}). "
+                f"q11_summary.json foi salvo mesmo assim.",
+                flush=True,
+            )
+            sys.exit(2)
+
+    except SystemExit:
+        raise  # propaga sys.exit() normal
+    except Exception as e:
+        # Log de erro em disco.
+        import time
+        import traceback
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        error_path = RESULTS_DIR / "_error.log"
+        try:
+            with error_path.open("a", encoding="utf-8") as f:
+                f.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+                f.write(f"{type(e).__name__}: {e}\n")
+                f.write(traceback.format_exc())
+            print(f"\n[ERRO] {type(e).__name__}: {e}", flush=True)
+            print(f"[ERRO] Traceback salvo em {error_path}", flush=True)
+        except Exception:
+            pass
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="K=11 evaluation.")
+    parser.add_argument(
+        "--artifacts-dir", type=Path, default=None,
+        help="diretorio de artefatos (default: ./artifacts)",
+    )
+    args = parser.parse_args()
+    main(artifacts_dir=args.artifacts_dir)

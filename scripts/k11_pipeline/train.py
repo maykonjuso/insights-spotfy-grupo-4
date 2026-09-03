@@ -63,7 +63,14 @@ np.random.seed(SEED)
 PIPELINE_ROOT = Path(__file__).resolve().parent
 DATA_PATH = PIPELINE_ROOT / "spotify_tracks_limpo.parquet"
 ARTIFACTS_DIR = PIPELINE_ROOT / "artifacts"
-ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+# Cria artifacts/ no import (cascata: se isso falhar, nada mais roda).
+# Tambem e recriado dentro de main() para garantir caso o diretorio seja
+# apagado entre import e execucao.
+try:
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as _e:
+    # Nao levanta -- deixa main() reportar com contexto completo.
+    print(f"[WARN] Nao foi possivel criar {ARTIFACTS_DIR} no import: {_e}", flush=True)
 
 # Gêneros a remover (não-musicais). Match por substring case-insensitive
 # em `generos` (string com todos os gêneros da faixa).
@@ -151,6 +158,25 @@ def build_k11(df: pd.DataFrame) -> pd.DataFrame:
 # =====================================================================
 # 4) Z-score nas contínuas + log1p no target
 # =====================================================================
+def _save_side_artifacts(scaler: dict, genero_cats: list[str], out_dir: Path) -> None:
+    """Salva scaler.json, feature_names.json, genero_cats.json em out_dir.
+
+    Funcao separada para garantir checkpoint: chamada IMEDIATAMENTE apos o
+    preprocessing, ANTES do NUTS. Se o fit falhar, esses artefatos ficam
+    disponiveis para diagnostico (e para o evaluate.py rodar).
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # scaler: apenas features continuas (binarias sao identidade).
+    scaler_continuous = {f: scaler[f] for f in CONTINUOUS_FEATS}
+    with (out_dir / "scaler.json").open("w", encoding="utf-8") as f:
+        json.dump(scaler_continuous, f, indent=2, ensure_ascii=False)
+    with (out_dir / "feature_names.json").open("w", encoding="utf-8") as f:
+        json.dump(K11_FEATS, f, indent=2, ensure_ascii=False)
+    with (out_dir / "genero_cats.json").open("w", encoding="utf-8") as f:
+        json.dump(genero_cats, f, indent=2, ensure_ascii=False)
+    print(f"      [checkpoint] scaler/feature_names/genero_cats salvos em {out_dir}", flush=True)
+
+
 def make_scaler_and_arrays(
     df: pd.DataFrame,
 ):
@@ -189,6 +215,9 @@ def make_scaler_and_arrays(
     genero_cats = sorted(df["genero_principal"].astype(str).unique().tolist())
     print(f"      X.shape={X.shape}, y_log.shape={y_log.shape}", flush=True)
     print(f"      #generos: {len(genero_cats)}", flush=True)
+    # CHECKPOINT: salva scaler/feature_names/genero_cats IMEDIATAMENTE.
+    # Se o NUTS explodir depois, ja temos o preprocessing em disco.
+    _save_side_artifacts(scaler, genero_cats, ARTIFACTS_DIR)
     return X, y_log, scaler, genero_cats
 
 
@@ -302,19 +331,25 @@ def build_model(
 # =====================================================================
 def fit_and_persist(
     model: pm.Model,
-    scaler: dict,
-    genero_cats: list[str],
     out_idata: Path,
+    draws: int = 1000,
+    tune: int = 1500,
+    chains: int = 4,
 ):
-    """Sampla, valida (r_hat, ESS, divergências) e salva artefatos."""
-    print("[6/8] Ajustando NUTS (numpyro, 4 chains) ...", flush=True)
+    """Sampla, valida (r_hat, ESS, divergências) e salva artefatos.
+
+    CRITICO: o posterior (k11_posterior.nc) e salvo IMEDIATAMENTE apos
+    pm.sample, ANTES de qualquer diagnostico. Se az.summary ou qualquer
+    coisa depois explodir, o fit NAO se perde.
+    """
+    print(f"[6/8] Ajustando NUTS (numpyro, {chains} chains, draws={draws}, tune={tune}) ...", flush=True)
     t0 = time.time()
 
     with model:
         idata = pm.sample(
-            draws=1000,
-            tune=1500,
-            chains=4,
+            draws=draws,
+            tune=tune,
+            chains=chains,
             nuts_sampler="numpyro",
             target_accept=0.9,
             random_seed=SEED,
@@ -324,136 +359,194 @@ def fit_and_persist(
     elapsed_min = (time.time() - t0) / 60.0
     print(f"[7/8] Fit concluído em {elapsed_min:.2f} min.", flush=True)
 
-    # ----- Validação de qualidade MCMC -----
-    print("      Validando diagnósticos ...", flush=True)
-    summary = az.summary(idata)
-    r_hat = summary["r_hat"].to_numpy()
-    ess_bulk = summary["ess_bulk"].to_numpy()
-    n_diverging = int(idata.sample_stats["diverging"].sum().item())
-
-    r_hat_max = float(np.nanmax(r_hat))
-    ess_bulk_min = float(np.nanmin(ess_bulk))
-    print(f"      r_hat max={r_hat_max:.4f}", flush=True)
-    print(f"      ess_bulk min={ess_bulk_min:.1f}", flush=True)
-    print(f"      divergências={n_diverging}", flush=True)
-
-    # Diagnosticos viram WARNINGS (nao asserts duros) para que o posterior
-    # seja SEMPRE persistido. O usuario decide depois se aceita ou re-treina
-    # com tune/draws maiores. Limites:
-    #   r_hat < 1.01  : chains bem misturadas
-    #   ess_bulk > 400 : 400 amostras efetivas por parametro
-    #   divergencias == 0 : sem trajetorias problematicas
-    diagnostics_ok = True
-    if r_hat_max >= 1.01:
-        print(
-            f"      [WARN] r_hat.max()={r_hat_max:.4f} >= 1.01 -- "
-            f"chains podem nao ter convergido bem",
-            flush=True,
-        )
-        diagnostics_ok = False
-    if ess_bulk_min <= 400:
-        print(
-            f"      [WARN] ess_bulk.min()={ess_bulk_min:.1f} <= 400 -- "
-            f"considere aumentar tune/draws",
-            flush=True,
-        )
-        diagnostics_ok = False
-    if n_diverging != 0:
-        print(
-            f"      [WARN] divergencias={n_diverging} != 0 -- "
-            f"posterior pode ter regioes problematicas",
-            flush=True,
-        )
-        diagnostics_ok = False
-    if not diagnostics_ok:
-        print(
-            "      [INFO] O posterior FOI salvo mesmo assim. "
-            "Avalie as metricas no evaluate.py antes de decidir re-treinar.",
-            flush=True,
-        )
-
-    # ----- Persistência -----
-    print("[8/8] Salvando artefatos ...", flush=True)
-
-    # 1) Posterior (NetCDF).
+    # ----- CHECKPOINT CRITICO: salvar o posterior AGORA -----
+    # Antes de qualquer diagnostico, persistir o fit em disco.
+    # Se algo depois explodir, o usuario nao perde o fit de 70 min.
+    out_idata.parent.mkdir(parents=True, exist_ok=True)
     idata.to_netcdf(out_idata)
-    print(f"      - {out_idata.relative_to(PIPELINE_ROOT)}", flush=True)
+    print(f"      [checkpoint] posterior salvo em {out_idata}", flush=True)
+    print(f"      [checkpoint] tamanho: {out_idata.stat().st_size / 1024:.1f} KB", flush=True)
 
-    # 2) Scaler (apenas contínuas, formato {feat: {mean, std}}).
-    scaler_path = ARTIFACTS_DIR / "scaler.json"
-    scaler_continuous = {f: scaler[f] for f in CONTINUOUS_FEATS}
-    with scaler_path.open("w", encoding="utf-8") as f:
-        json.dump(scaler_continuous, f, indent=2, ensure_ascii=False)
-    print(f"      - {scaler_path.relative_to(PIPELINE_ROOT)}", flush=True)
+    # ----- Validação de qualidade MCMC (WARNINGS, nao asserts) -----
+    print("      Validando diagnósticos ...", flush=True)
+    try:
+        summary = az.summary(idata)
+        r_hat = summary["r_hat"].to_numpy()
+        ess_bulk = summary["ess_bulk"].to_numpy()
+        n_diverging = int(idata.sample_stats["diverging"].sum().item())
 
-    # 3) Lista K=11.
-    feat_path = ARTIFACTS_DIR / "feature_names.json"
-    with feat_path.open("w", encoding="utf-8") as f:
-        json.dump(K11_FEATS, f, indent=2, ensure_ascii=False)
-    print(f"      - {feat_path.relative_to(PIPELINE_ROOT)}", flush=True)
+        r_hat_max = float(np.nanmax(r_hat))
+        ess_bulk_min = float(np.nanmin(ess_bulk))
+        print(f"      r_hat max={r_hat_max:.4f}", flush=True)
+        print(f"      ess_bulk min={ess_bulk_min:.1f}", flush=True)
+        print(f"      divergências={n_diverging}", flush=True)
 
-    # 4) Categorias de gênero (ordenadas).
-    cats_path = ARTIFACTS_DIR / "genero_cats.json"
-    with cats_path.open("w", encoding="utf-8") as f:
-        json.dump(genero_cats, f, indent=2, ensure_ascii=False)
-    print(f"      - {cats_path.relative_to(PIPELINE_ROOT)}", flush=True)
+        # Limites:
+        #   r_hat < 1.01  : chains bem misturadas
+        #   ess_bulk > 400 : 400 amostras efetivas por parametro
+        #   divergencias == 0 : sem trajetorias problematicas
+        diagnostics_ok = True
+        if r_hat_max >= 1.01:
+            print(
+                f"      [WARN] r_hat.max()={r_hat_max:.4f} >= 1.01 -- "
+                f"chains podem nao ter convergido bem",
+                flush=True,
+            )
+            diagnostics_ok = False
+        if ess_bulk_min <= 400:
+            print(
+                f"      [WARN] ess_bulk.min()={ess_bulk_min:.1f} <= 400 -- "
+                f"considere aumentar tune/draws",
+                flush=True,
+            )
+            diagnostics_ok = False
+        if n_diverging != 0:
+            print(
+                f"      [WARN] divergencias={n_diverging} != 0 -- "
+                f"posterior pode ter regioes problematicas",
+                flush=True,
+            )
+            diagnostics_ok = False
+        if not diagnostics_ok:
+            print(
+                "      [INFO] O posterior FOI salvo mesmo assim. "
+                "Avalie as metricas no evaluate.py antes de decidir re-treinar.",
+                flush=True,
+            )
+    except Exception as e:
+        # Diagnosticos falharam -- mas o posterior JA foi salvo.
+        print(f"      [WARN] Falha ao computar diagnosticos: {e}", flush=True)
+        print(f"      [INFO] Posterior esta salvo em {out_idata} mesmo assim.", flush=True)
+        return idata, elapsed_min, np.array([1.0]), np.array([1.0]), 0
 
+    # Imprime header final
+    print("[8/8] Salvamento completo.", flush=True)
     return idata, elapsed_min, r_hat, ess_bulk, n_diverging
 
 
 # =====================================================================
 # 8) main
 # =====================================================================
-def main() -> None:
+def main(
+    draws: int = 1000,
+    tune: int = 1500,
+    chains: int = 4,
+    out_dir: Path | None = None,
+) -> None:
+    """Pipeline de treino com checkpoint saving.
+
+    Args:
+        draws:  numero de samples por chain (default 1000).
+        tune:   warmup iterations (default 1500).
+        chains: numero de chains (default 4).
+        out_dir: diretorio de saida. Se None, usa ARTIFACTS_DIR.
+    """
+    if out_dir is None:
+        out_dir = ARTIFACTS_DIR
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     print("=" * 70, flush=True)
     print("train_k11 — Modelo Bayesiano Hierárquico K=11", flush=True)
     try:
         import jax
         n_dev = jax.local_device_count()
         backend = jax.default_backend()
-        print(f"SEED={SEED} | K={len(K11_FEATS)} | jax backend={backend} | devices={n_dev}", flush=True)
+        print(
+            f"SEED={SEED} | K={len(K11_FEATS)} | jax backend={backend} | "
+            f"devices={n_dev} | draws={draws} tune={tune} chains={chains} | "
+            f"out={out_dir.name}",
+            flush=True,
+        )
     except Exception:
-        print(f"SEED={SEED} | K={len(K11_FEATS)} | jax backend=unknown", flush=True)
+        print(
+            f"SEED={SEED} | K={len(K11_FEATS)} | jax backend=unknown | "
+            f"draws={draws} tune={tune} chains={chains}",
+            flush=True,
+        )
     print("=" * 70, flush=True)
 
-    df = load_and_filter(DATA_PATH)
-    df = build_k11(df)
-    X, y_log, scaler, genero_cats = make_scaler_and_arrays(df)
+    try:
+        df = load_and_filter(DATA_PATH)
+        df = build_k11(df)
+        # make_scaler_and_arrays() faz checkpoint dos side artifacts.
+        X, y_log, scaler, genero_cats = make_scaler_and_arrays(df)
 
-    # Split + indices.
-    split_path = ARTIFACTS_DIR / "split_indices.npz"
-    train_idx, val_idx, test_idx = split_indices(len(df), split_path)
+        # Split + indices (tambem salva split_indices.npz).
+        split_path = out_dir / "split_indices.npz"
+        train_idx, val_idx, test_idx = split_indices(len(df), split_path)
 
-    # Arrays de treino (z-scored + log target + genero_idx).
-    X_train = X[train_idx]
-    y_log_train = y_log[train_idx]
-    genero_to_idx = {g: i for i, g in enumerate(genero_cats)}
-    g_idx_train = (
-        df["genero_principal"].iloc[train_idx].map(genero_to_idx).to_numpy().astype("int32")
-    )
+        # Arrays de treino.
+        X_train = X[train_idx]
+        y_log_train = y_log[train_idx]
+        genero_to_idx = {g: i for i, g in enumerate(genero_cats)}
+        g_idx_train = (
+            df["genero_principal"].iloc[train_idx].map(genero_to_idx).to_numpy().astype("int32")
+        )
 
-    # Modelo + fit.
-    model = build_model(X_train, y_log_train, g_idx_train, genero_cats)
-    out_idata = ARTIFACTS_DIR / "k11_posterior.nc"
-    idata, elapsed_min, r_hat, ess_bulk, n_diverging = fit_and_persist(
-        model, scaler, genero_cats, out_idata
-    )
+        # Modelo.
+        model = build_model(X_train, y_log_train, g_idx_train, genero_cats)
 
-    # Relatório final.
-    print("", flush=True)
-    print("=" * 70, flush=True)
-    print("RESULTADO", flush=True)
-    print(f"  tempo de fit      : {elapsed_min:.2f} min", flush=True)
-    print(f"  r_hat range       : [{float(r_hat.min()):.4f}, {float(r_hat.max()):.4f}]", flush=True)
-    print(
-        f"  ess_bulk range    : [{float(ess_bulk.min()):.1f}, {float(ess_bulk.max()):.1f}]",
-        flush=True,
-    )
-    print(f"  divergências      : {n_diverging}", flush=True)
-    print(f"  #generos no modelo: {len(genero_cats)}", flush=True)
-    print(f"  K (features)      : {len(K11_FEATS)}", flush=True)
-    print("=" * 70, flush=True)
+        # Fit + CHECKPOINT do posterior (IMEDIATO apos pm.sample, dentro de fit_and_persist).
+        out_idata = out_dir / "k11_posterior.nc"
+        idata, elapsed_min, r_hat, ess_bulk, n_diverging = fit_and_persist(
+            model, out_idata, draws=draws, tune=tune, chains=chains
+        )
+
+        # Relatorio final.
+        print("", flush=True)
+        print("=" * 70, flush=True)
+        print("RESULTADO", flush=True)
+        print(f"  tempo de fit      : {elapsed_min:.2f} min", flush=True)
+        try:
+            print(f"  r_hat range       : [{float(r_hat.min()):.4f}, {float(r_hat.max()):.4f}]", flush=True)
+            print(
+                f"  ess_bulk range    : [{float(ess_bulk.min()):.1f}, {float(ess_bulk.max()):.1f}]",
+                flush=True,
+            )
+        except Exception:
+            print("  diagnosticos indisponiveis (mas posterior foi salvo)", flush=True)
+        print(f"  divergências      : {n_diverging}", flush=True)
+        print(f"  #generos no modelo: {len(genero_cats)}", flush=True)
+        print(f"  K (features)      : {len(K11_FEATS)}", flush=True)
+        print("=" * 70, flush=True)
+        print(
+            f"\n[OK] Artefatos salvos em {out_dir}/. "
+            f"Pode rodar evaluate.py mesmo se os diagnosticos estiverem ruins.",
+            flush=True,
+        )
+
+    except Exception as e:
+        # Log de erro em disco para o usuario poder debugar.
+        import traceback
+        error_path = out_dir / "_error.log"
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            with error_path.open("a", encoding="utf-8") as f:
+                f.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+                f.write(f"{type(e).__name__}: {e}\n")
+                f.write(traceback.format_exc())
+            print(f"\n[ERRO] {type(e).__name__}: {e}", flush=True)
+            print(f"[ERRO] Traceback salvo em {error_path}", flush=True)
+        except Exception:
+            pass
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="K=11 Bayesian hierarchical training.")
+    parser.add_argument("--draws", type=int, default=1000, help="samples por chain")
+    parser.add_argument("--tune", type=int, default=1500, help="warmup iterations")
+    parser.add_argument("--chains", type=int, default=4, help="numero de chains")
+    parser.add_argument(
+        "--out-dir", type=Path, default=None,
+        help="diretorio de saida (default: artifacts/)",
+    )
+    args = parser.parse_args()
+    main(
+        draws=args.draws,
+        tune=args.tune,
+        chains=args.chains,
+        out_dir=args.out_dir,
+    )
