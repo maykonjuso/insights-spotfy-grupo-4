@@ -21,7 +21,7 @@ Dependências:
   NÃO depende de pymc/jax/numpyro.
 
 Uso:
-  python scripts/export_for_nextjs.py
+  python scripts/k11_pipeline/export.py
 
 Saídas em artifacts/:
   - k11_posterior_summary.json
@@ -48,11 +48,11 @@ import pandas as pd
 SEED = 42
 N_SAMPLES = 1000  # samples a reter no JSON compactado
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-ARTIFACTS_DIR = REPO_ROOT / "artifacts"
+PIPELINE_ROOT = Path(__file__).resolve().parent
+ARTIFACTS_DIR = PIPELINE_ROOT / "artifacts"
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
-DATA_PATH = REPO_ROOT / "data" / "processed" / "spotify_tracks_limpo.parquet"
+DATA_PATH = PIPELINE_ROOT / "spotify_tracks_limpo.parquet"
 
 # Gêneros a remover (espelha train_k11.py).
 NON_MUSICAL = ["sleep", "study", "comedy", "kids", "children", "new-age"]
@@ -84,11 +84,6 @@ CONTINUOUS_FEATS = [
 ]
 BINARY_FEATS = ["explicit", "mode_bin"]
 
-# Variáveis do posterior a exportar (nome, dims-alvo no samples JSON).
-# 'shape' descreve o shape após concatenar chain+draw.
-POSTERIOR_VARS = ["mu_alpha", "sigma_alpha", "mu_beta", "sigma_beta", "sigma_y"]
-
-
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -115,7 +110,7 @@ def ensure_feature_and_cats(out_dir: Path) -> tuple[list[str], list[str]]:
         genero_cats = json.loads(cats_path.read_text(encoding="utf-8"))
         return feature_names, genero_cats
 
-    print(f"[recreate] Lendo {DATA_PATH.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[recreate] Lendo {DATA_PATH.relative_to(PIPELINE_ROOT)} ...", flush=True)
     df = pd.read_parquet(DATA_PATH)
 
     # Aplica filtro não-musical (mesmo do train_k11.py).
@@ -137,7 +132,7 @@ def ensure_feature_and_cats(out_dir: Path) -> tuple[list[str], list[str]]:
             json.dumps(K11_FEATS, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        print(f"      - {feat_path.relative_to(REPO_ROOT)} (recriado)", flush=True)
+        print(f"      - {feat_path.relative_to(PIPELINE_ROOT)} (recriado)", flush=True)
 
     if need_cats:
         genero_cats = sorted(df["genero_principal"].astype(str).unique().tolist())
@@ -145,7 +140,7 @@ def ensure_feature_and_cats(out_dir: Path) -> tuple[list[str], list[str]]:
             json.dumps(genero_cats, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        print(f"      - {cats_path.relative_to(REPO_ROOT)} (recriado, {len(genero_cats)} generos)", flush=True)
+        print(f"      - {cats_path.relative_to(PIPELINE_ROOT)} (recriado, {len(genero_cats)} generos)", flush=True)
 
     feature_names = json.loads(feat_path.read_text(encoding="utf-8"))
     genero_cats = json.loads(cats_path.read_text(encoding="utf-8"))
@@ -164,7 +159,7 @@ def ensure_scaler(out_dir: Path) -> dict:
     if scaler_path.exists():
         return json.loads(scaler_path.read_text(encoding="utf-8"))
 
-    print(f"[recreate] Lendo {DATA_PATH.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[recreate] Lendo {DATA_PATH.relative_to(PIPELINE_ROOT)} ...", flush=True)
     df = pd.read_parquet(DATA_PATH)
 
     # Filtro não-musical + tipos (espelha train_k11.py).
@@ -188,22 +183,34 @@ def ensure_scaler(out_dir: Path) -> dict:
         json.dumps(scaler, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-    print(f"      - {scaler_path.relative_to(REPO_ROOT)} (recriado)", flush=True)
+    print(f"      - {scaler_path.relative_to(PIPELINE_ROOT)} (recriado)", flush=True)
     return scaler
 
 
 # =====================================================================
 # 1) Carregar posterior
 # =====================================================================
-def load_posterior(nc_path: Path) -> az.InferenceData:
-    """Lê o NetCDF e valida o shape mínimo esperado (4 chains x 1000 draws)."""
-    if not nc_path.exists():
-        raise FileNotFoundError(
-            f"Posterior não encontrado em {nc_path}. "
-            "Rode scripts/train_k11.py antes."
-        )
-    print(f"[1/4] Lendo {nc_path.relative_to(REPO_ROOT)} ...", flush=True)
-    idata = az.from_netcdf(str(nc_path))
+def load_posterior(pkl_path: Path) -> az.InferenceData:
+    """Lê o posterior pickle e valida o shape mínimo esperado (4 chains x 1000 draws).
+
+    Tenta pickle primeiro (formato novo). Fallback para NetCDF se nao achar pickle
+    (legacy, requer netCDF4 instalado).
+    """
+    if not pkl_path.exists():
+        legacy_nc = pkl_path.with_suffix(".nc")
+        if legacy_nc.exists():
+            print(f"[1/4] Lendo {legacy_nc.relative_to(PIPELINE_ROOT)} (legacy NetCDF) ...", flush=True)
+            idata = az.from_netcdf(str(legacy_nc))
+        else:
+            raise FileNotFoundError(
+                f"Posterior nao encontrado em {pkl_path} nem {legacy_nc}. "
+                "Rode train.py antes (em scripts/k11_pipeline/train.py)."
+            )
+    else:
+        print(f"[1/4] Lendo {pkl_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
+        import pickle
+        with open(pkl_path, "rb") as f:
+            idata = pickle.load(f)
 
     post = idata.posterior
     if "chain" not in post.dims or "draw" not in post.dims:
@@ -324,12 +331,12 @@ def write_outputs(
         json.dumps(summary, ensure_ascii=False),
         encoding="utf-8",
     )
-    print(f"      - {summary_path.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {summary_path.relative_to(PIPELINE_ROOT)}", flush=True)
 
     # Samples: gzipped JSON. Compressão default (nível 6) é o sweet spot.
     with gzip.open(samples_path, "wt", encoding="utf-8") as f:
         json.dump(samples, f, ensure_ascii=False)
-    print(f"      - {samples_path.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {samples_path.relative_to(PIPELINE_ROOT)}", flush=True)
 
     return summary_path, samples_path
 
@@ -343,7 +350,7 @@ def main() -> None:
     print(f"SEED={SEED} | N_SAMPLES={N_SAMPLES} | artifacts={ARTIFACTS_DIR}", flush=True)
     print("=" * 70, flush=True)
 
-    nc_path = ARTIFACTS_DIR / "k11_posterior.nc"
+    nc_path = ARTIFACTS_DIR / "k11_posterior.pkl"
     idata = load_posterior(nc_path)
 
     # Side artifacts.
