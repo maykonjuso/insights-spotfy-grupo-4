@@ -195,7 +195,7 @@ def load_posterior(nc_path: Path) -> az.InferenceData:
     if not nc_path.exists():
         raise FileNotFoundError(
             f"Posterior não encontrado em {nc_path}. "
-            "Rode scripts/train_k11.py antes."
+            "Rode train.py antes (em scripts/k11_pipeline/train.py)."
         )
     print(f"[1/4] Lendo {nc_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
     idata = az.from_netcdf(str(nc_path))

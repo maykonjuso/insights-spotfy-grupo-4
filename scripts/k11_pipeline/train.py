@@ -35,7 +35,7 @@ from pathlib import Path
 
 # --- 1) Backend NumPyro em GPU (T4). Deve vir ANTES de import pymc. -----
 import numpyro  # noqa: E402
-numpyro.set_platform("gpu")
+numpyro.set_platform("cuda")  # T4/A100/V100 NVIDIA; use "cpu" para CPU-only
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
