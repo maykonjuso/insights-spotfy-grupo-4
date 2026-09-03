@@ -17,7 +17,7 @@ Dependências (pinadas em requirements.txt):
   pandas, numpy, scipy.
 
 Uso:
-  python scripts/train_k11.py
+  python scripts/k11_pipeline/train.py
 
 Saídas em artifacts/:
   - k11_posterior.nc
@@ -50,10 +50,10 @@ import arviz as az  # noqa: E402
 SEED = 42
 np.random.seed(SEED)
 
-# Caminhos absolutos relativos ao REPO_ROOT (este arquivo: scripts/train_k11.py)
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = REPO_ROOT / "data" / "processed" / "spotify_tracks_limpo.parquet"
-ARTIFACTS_DIR = REPO_ROOT / "artifacts"
+# Caminhos absolutos relativos ao PIPELINE_ROOT (este arquivo: scripts/k11_pipeline/train.py)
+PIPELINE_ROOT = Path(__file__).resolve().parent
+DATA_PATH = PIPELINE_ROOT / "spotify_tracks_limpo.parquet"
+ARTIFACTS_DIR = PIPELINE_ROOT / "artifacts"
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Gêneros a remover (não-musicais). Match por substring case-insensitive
@@ -103,7 +103,7 @@ def load_and_filter(path: Path) -> pd.DataFrame:
     conservador que em `genero_principal`, captura casos onde o gênero
     principal é musical mas há tags não-musicais associadas.
     """
-    print(f"[1/8] Lendo {path.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[1/8] Lendo {path.relative_to(PIPELINE_ROOT)} ...", flush=True)
     df = pd.read_parquet(path)
 
     pattern = "|".join(NON_MUSICAL)
@@ -337,26 +337,26 @@ def fit_and_persist(
 
     # 1) Posterior (NetCDF).
     idata.to_netcdf(out_idata)
-    print(f"      - {out_idata.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {out_idata.relative_to(PIPELINE_ROOT)}", flush=True)
 
     # 2) Scaler (apenas contínuas, formato {feat: {mean, std}}).
     scaler_path = ARTIFACTS_DIR / "scaler.json"
     scaler_continuous = {f: scaler[f] for f in CONTINUOUS_FEATS}
     with scaler_path.open("w", encoding="utf-8") as f:
         json.dump(scaler_continuous, f, indent=2, ensure_ascii=False)
-    print(f"      - {scaler_path.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {scaler_path.relative_to(PIPELINE_ROOT)}", flush=True)
 
     # 3) Lista K=11.
     feat_path = ARTIFACTS_DIR / "feature_names.json"
     with feat_path.open("w", encoding="utf-8") as f:
         json.dump(K11_FEATS, f, indent=2, ensure_ascii=False)
-    print(f"      - {feat_path.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {feat_path.relative_to(PIPELINE_ROOT)}", flush=True)
 
     # 4) Categorias de gênero (ordenadas).
     cats_path = ARTIFACTS_DIR / "genero_cats.json"
     with cats_path.open("w", encoding="utf-8") as f:
         json.dump(genero_cats, f, indent=2, ensure_ascii=False)
-    print(f"      - {cats_path.relative_to(REPO_ROOT)}", flush=True)
+    print(f"      - {cats_path.relative_to(PIPELINE_ROOT)}", flush=True)
 
     return idata, elapsed_min, r_hat, ess_bulk, n_diverging
 

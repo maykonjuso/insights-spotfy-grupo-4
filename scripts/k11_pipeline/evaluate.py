@@ -17,7 +17,7 @@ Pipeline:
   7. Persiste CSVs e JSON de summary em relatorio/analises/resultados/.
 
 Uso:
-  python scripts/evaluate_k11.py
+  python scripts/k11_pipeline/evaluate.py
 
 Dependências:
   arviz, numpy, pandas
@@ -41,11 +41,11 @@ N_POSTERIOR_SAMPLES = 1000  # sub-amostra do posterior (de 4000)
 HDI_PROB = 0.94
 HDI_ALPHA = (1.0 - HDI_PROB) / 2.0  # 0.03 -> percentis 3 e 97
 
-# Caminhos absolutos relativos ao REPO_ROOT.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = REPO_ROOT / "data" / "processed" / "spotify_tracks_limpo.parquet"
-ARTIFACTS_DIR = REPO_ROOT / "artifacts"
-RESULTS_DIR = REPO_ROOT / "relatorio" / "analises" / "resultados"
+# Caminhos absolutos relativos ao PIPELINE_ROOT.
+PIPELINE_ROOT = Path(__file__).resolve().parent
+DATA_PATH = PIPELINE_ROOT / "spotify_tracks_limpo.parquet"
+ARTIFACTS_DIR = PIPELINE_ROOT / "artifacts"
+RESULTS_DIR = PIPELINE_ROOT / "relatorio" / "analises" / "resultados"
 
 # Features e categorias: devem coincidir com train_k11.py.
 BASELINE_FEATS = [
@@ -90,7 +90,7 @@ HDI_COVERAGE_HI = 0.97
 # =====================================================================
 def load_and_filter(path: Path) -> pd.DataFrame:
     """Carrega parquet e remove gêneros não-musicais (mesma lógica do treino)."""
-    print(f"[1/6] Lendo {path.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[1/6] Lendo {path.relative_to(PIPELINE_ROOT)} ...", flush=True)
     df = pd.read_parquet(path)
 
     pattern = "|".join(NON_MUSICAL)
@@ -126,7 +126,7 @@ def apply_scaler(df: pd.DataFrame, scaler_path: Path) -> np.ndarray:
     O scaler salvo contém apenas as 9 features contínuas. As binárias
     entram como estão (0/1), exatamente como o treino.
     """
-    print(f"[3/6] Aplicando scaler de {scaler_path.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[3/6] Aplicando scaler de {scaler_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
     with scaler_path.open("r", encoding="utf-8") as f:
         scaler = json.load(f)
 
@@ -388,7 +388,7 @@ def main() -> None:
     )
 
     # --- Carrega posterior ---
-    print(f"[4/6] Carregando posterior {posterior_path.relative_to(REPO_ROOT)} ...", flush=True)
+    print(f"[4/6] Carregando posterior {posterior_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
     idata = az.from_netcdf(posterior_path)
     alpha_g_s, beta_g_s = sample_posterior(idata, N_POSTERIOR_SAMPLES, SEED)
 
@@ -461,6 +461,7 @@ def main() -> None:
         },
         "n_posterior_samples": int(N_POSTERIOR_SAMPLES),
         "hdi_prob": HDI_PROB,
+        "assertions_passed": bool(assertions_passed),
         "assertions": {
             "test_rmse_max": TEST_RMSE_MAX,
             "test_r2_min": TEST_R2_MIN,
@@ -478,11 +479,11 @@ def main() -> None:
     print("", flush=True)
     print("=" * 70, flush=True)
     print("ARTEFATOS SALVOS", flush=True)
-    print(f"  {val_csv.relative_to(REPO_ROOT)}", flush=True)
-    print(f"  {test_csv.relative_to(REPO_ROOT)}", flush=True)
-    print(f"  {per_genre_csv.relative_to(REPO_ROOT)}", flush=True)
-    print(f"  {calib_csv.relative_to(REPO_ROOT)}", flush=True)
-    print(f"  {summary_json.relative_to(REPO_ROOT)}", flush=True)
+    print(f"  {val_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+    print(f"  {test_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+    print(f"  {per_genre_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+    print(f"  {calib_csv.relative_to(PIPELINE_ROOT)}", flush=True)
+    print(f"  {summary_json.relative_to(PIPELINE_ROOT)}", flush=True)
     print(f"  assertions_passed = {assertions_passed}", flush=True)
     print("=" * 70, flush=True)
 

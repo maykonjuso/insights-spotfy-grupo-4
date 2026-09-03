@@ -38,3 +38,9 @@ q9_*.npy
 
 # Q9 posteriors NetCDF (~1.1 GB, regeneráveis rodando o notebook)
 q9_*.nc
+
+# K=11 pipeline (scripts/k11_pipeline/): artefatos e logs gerados
+# (o parquet e copia do data/processed/ original; os artefatos .nc/.json sao outputs)
+scripts/k11_pipeline/artifacts/
+scripts/k11_pipeline/spotify_tracks_limpo.parquet
+scripts/k11_pipeline/*.log
