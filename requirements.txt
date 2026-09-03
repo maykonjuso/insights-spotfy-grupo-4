@@ -21,3 +21,6 @@ numpyro==0.21.0
 jax==0.5.3
 scipy==1.14.1
 scikit-learn==1.6.0
+
+# NetCDF backend (para idata.to_netcdf em train.py)
+netCDF4==1.7.2

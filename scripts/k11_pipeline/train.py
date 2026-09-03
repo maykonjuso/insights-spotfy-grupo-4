@@ -54,6 +54,17 @@ if _OMP_THREADS > 0:
     os.environ["OMP_NUM_THREADS"] = str(_OMP_THREADS)
     os.environ["MKL_NUM_THREADS"] = str(_OMP_THREADS)
 
+# CRITICO: setar XLA_FLAGS ANTES do import jax, senao jax inicializa
+# com 1 device e ignora set_host_device_count() chamado depois.
+# XLA_FLAGS precisa estar no env ANTES de qualquer import de jax/numpyro.
+if _HOST_DEVICES > 0 and "XLA_FLAGS" not in os.environ:
+    os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_HOST_DEVICES}"
+    print(
+        f"[config] XLA_FLAGS setado para forcar {_HOST_DEVICES} devices "
+        f"(deve estar no env antes do import jax)",
+        flush=True,
+    )
+
 # --- 1) Backend NumPyro em GPU (T4). Deve vir ANTES de import pymc. -----
 import numpyro  # noqa: E402
 _platform_env = os.environ.get("K11_PLATFORM", "").strip().lower()
@@ -67,15 +78,15 @@ else:
         numpyro.set_platform("cpu")
 
 # Habilita N chains em paralelo no CPU (T4 tem so 1 device, sequencial).
+# XLA_FLAGS ja foi setado antes do import jax, entao jax.local_device_count()
+# deve retornar o numero correto.
 try:
     import jax
     if jax.default_backend() == "cpu":
-        # Maximo: usa os.cpu_count() chains (cada uma 1 OMP thread)
-        n_devices = _HOST_DEVICES if _HOST_DEVICES > 0 else (os.cpu_count() or 4)
-        numpyro.set_host_device_count(n_devices)
+        n_devices = jax.local_device_count()
         n_threads = _OMP_THREADS if _OMP_THREADS > 0 else 1
         print(
-            f"[config] CPU mode: {n_devices} chains paralelas x {n_threads} threads/chain "
+            f"[config] CPU mode: {n_devices} devices (chains paralelas) x {n_threads} threads/chain "
             f"= {n_devices * n_threads} threads total "
             f"(os.cpu_count() reporta {os.cpu_count()} logical cores)",
             flush=True,
