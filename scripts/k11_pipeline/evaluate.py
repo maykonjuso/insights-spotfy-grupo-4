@@ -487,12 +487,18 @@ def main() -> None:
     print(f"  assertions_passed = {assertions_passed}", flush=True)
     print("=" * 70, flush=True)
 
-    # Se asserts falharam, propaga.
+    # Asserts viram exit code nao-zero se falharem (CI-friendly), mas NAO
+    # levantam excecao: o summary.json ja foi salvo, e o usuario precisa
+    # dos dados para decidir se re-treina.
     if not assertions_passed:
-        raise AssertionError(
-            f"Test metrics fora dos limites. RMSE={test_metrics['rmse']:.4f}, "
-            f"R²={test_metrics['r2']:.4f}, HDI94={test_metrics['hdi_94_coverage']:.4f}"
+        import sys
+        print(
+            f"  [WARN] assertions FALHARAM (RMSE={test_metrics['rmse']:.4f}, "
+            f"R²={test_metrics['r2']:.4f}, HDI94={test_metrics['hdi_94_coverage']:.4f}). "
+            f"q11_summary.json foi salvo mesmo assim.",
+            flush=True,
         )
+        sys.exit(2)
 
 
 if __name__ == "__main__":

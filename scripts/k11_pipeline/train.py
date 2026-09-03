@@ -37,6 +37,15 @@ from pathlib import Path
 import numpyro  # noqa: E402
 numpyro.set_platform("cuda")  # T4/A100/V100 NVIDIA; use "cpu" para CPU-only
 
+# Habilita 4 chains em paralelo mesmo em CPU (T4 so tem 1 device -- sequencial).
+# Em GPU com 1 device, esta chamada e ignorada. Em CPU, simula 4 cores.
+try:
+    import jax
+    if jax.default_backend() == "cpu":
+        numpyro.set_host_device_count(4)
+except Exception:
+    pass
+
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import pymc as pm  # noqa: E402
@@ -328,9 +337,40 @@ def fit_and_persist(
     print(f"      ess_bulk min={ess_bulk_min:.1f}", flush=True)
     print(f"      divergências={n_diverging}", flush=True)
 
-    assert r_hat_max < 1.01, f"r_hat.max()={r_hat_max} >= 1.01"
-    assert ess_bulk_min > 400, f"ess_bulk.min()={ess_bulk_min} <= 400"
-    assert n_diverging == 0, f"divergências={n_diverging} != 0"
+    # Diagnosticos viram WARNINGS (nao asserts duros) para que o posterior
+    # seja SEMPRE persistido. O usuario decide depois se aceita ou re-treina
+    # com tune/draws maiores. Limites:
+    #   r_hat < 1.01  : chains bem misturadas
+    #   ess_bulk > 400 : 400 amostras efetivas por parametro
+    #   divergencias == 0 : sem trajetorias problematicas
+    diagnostics_ok = True
+    if r_hat_max >= 1.01:
+        print(
+            f"      [WARN] r_hat.max()={r_hat_max:.4f} >= 1.01 -- "
+            f"chains podem nao ter convergido bem",
+            flush=True,
+        )
+        diagnostics_ok = False
+    if ess_bulk_min <= 400:
+        print(
+            f"      [WARN] ess_bulk.min()={ess_bulk_min:.1f} <= 400 -- "
+            f"considere aumentar tune/draws",
+            flush=True,
+        )
+        diagnostics_ok = False
+    if n_diverging != 0:
+        print(
+            f"      [WARN] divergencias={n_diverging} != 0 -- "
+            f"posterior pode ter regioes problematicas",
+            flush=True,
+        )
+        diagnostics_ok = False
+    if not diagnostics_ok:
+        print(
+            "      [INFO] O posterior FOI salvo mesmo assim. "
+            "Avalie as metricas no evaluate.py antes de decidir re-treinar.",
+            flush=True,
+        )
 
     # ----- Persistência -----
     print("[8/8] Salvando artefatos ...", flush=True)
@@ -367,7 +407,13 @@ def fit_and_persist(
 def main() -> None:
     print("=" * 70, flush=True)
     print("train_k11 — Modelo Bayesiano Hierárquico K=11", flush=True)
-    print(f"SEED={SEED} | K={len(K11_FEATS)} | backend=numpyro/gpu", flush=True)
+    try:
+        import jax
+        n_dev = jax.local_device_count()
+        backend = jax.default_backend()
+        print(f"SEED={SEED} | K={len(K11_FEATS)} | jax backend={backend} | devices={n_dev}", flush=True)
+    except Exception:
+        print(f"SEED={SEED} | K={len(K11_FEATS)} | jax backend=unknown", flush=True)
     print("=" * 70, flush=True)
 
     df = load_and_filter(DATA_PATH)
