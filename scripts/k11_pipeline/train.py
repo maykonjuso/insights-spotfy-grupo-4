@@ -59,11 +59,21 @@ if _OMP_THREADS > 0:
 # XLA_FLAGS precisa estar no env ANTES de qualquer import de jax/numpyro.
 if _HOST_DEVICES > 0 and "XLA_FLAGS" not in os.environ:
     os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_HOST_DEVICES}"
-    print(
-        f"[config] XLA_FLAGS setado para forcar {_HOST_DEVICES} devices "
-        f"(deve estar no env antes do import jax)",
-        flush=True,
-    )
+
+# === DEBUG: imprime estado ANTES dos imports ===
+import sys
+print("=" * 70, flush=True)
+print("[debug] Estado ANTES de importar jax/numpyro:", flush=True)
+print(f"  sys.executable        = {sys.executable}", flush=True)
+print(f"  sys.version           = {sys.version.split()[0]}", flush=True)
+print(f"  K11_HOST_DEVICES      = {os.environ.get('K11_HOST_DEVICES', '(nao setado)')}", flush=True)
+print(f"  K11_OMP_THREADS       = {os.environ.get('K11_OMP_THREADS', '(nao setado)')}", flush=True)
+print(f"  K11_PLATFORM          = {os.environ.get('K11_PLATFORM', '(nao setado)')}", flush=True)
+print(f"  XLA_FLAGS             = {os.environ.get('XLA_FLAGS', '(nao setado)')}", flush=True)
+print(f"  OMP_NUM_THREADS       = {os.environ.get('OMP_NUM_THREADS', '(nao setado)')}", flush=True)
+print(f"  JAX_PLATFORMS         = {os.environ.get('JAX_PLATFORMS', '(nao setado)')}", flush=True)
+print(f"  os.cpu_count()        = {os.cpu_count()}", flush=True)
+print("=" * 70, flush=True)
 
 # --- 1) Backend NumPyro em GPU (T4). Deve vir ANTES de import pymc. -----
 import numpyro  # noqa: E402
@@ -82,17 +92,37 @@ else:
 # deve retornar o numero correto.
 try:
     import jax
+    n_threads = _OMP_THREADS if _OMP_THREADS > 0 else 1
+    n_devices = jax.local_device_count()
+    print(
+        f"[config] jax.local_device_count() = {n_devices} "
+        f"(backend={jax.default_backend()}, esperado={_HOST_DEVICES if _HOST_DEVICES > 0 else 'auto'})",
+        flush=True,
+    )
+    if jax.default_backend() == "cpu" and n_devices < (_HOST_DEVICES if _HOST_DEVICES > 0 else 2):
+        # Fallback: tenta set_host_device_count de novo (pode pegar agora)
+        print(
+            f"[config] WARN: jax so ve {n_devices} device(s), esperado >= "
+            f"{_HOST_DEVICES if _HOST_DEVICES > 0 else 2}. "
+            f"Tentando numpyro.set_host_device_count() como fallback.",
+            flush=True,
+        )
+        try:
+            n_target = _HOST_DEVICES if _HOST_DEVICES > 0 else 4
+            numpyro.set_host_device_count(n_target)
+            n_devices = jax.local_device_count()
+            print(f"[config] apos fallback: jax.local_device_count() = {n_devices}", flush=True)
+        except Exception as e:
+            print(f"[config] fallback falhou: {e}", flush=True)
     if jax.default_backend() == "cpu":
-        n_devices = jax.local_device_count()
-        n_threads = _OMP_THREADS if _OMP_THREADS > 0 else 1
         print(
             f"[config] CPU mode: {n_devices} devices (chains paralelas) x {n_threads} threads/chain "
             f"= {n_devices * n_threads} threads total "
             f"(os.cpu_count() reporta {os.cpu_count()} logical cores)",
             flush=True,
         )
-except Exception:
-    pass
+except Exception as e:
+    print(f"[config] ERRO ao configurar jax: {e}", flush=True)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
