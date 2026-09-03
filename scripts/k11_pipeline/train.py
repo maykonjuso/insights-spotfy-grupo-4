@@ -454,10 +454,16 @@ def fit_and_persist(
     # ----- CHECKPOINT CRITICO: salvar o posterior AGORA -----
     # Antes de qualquer diagnostico, persistir o fit em disco.
     # Se algo depois explodir, o usuario nao perde o fit de 70 min.
+    # Usamos pickle (stdlib) em vez de NetCDF porque netCDF4/h5netcdf
+    # sao C-extensions problematicas no Anaconda. Pickle e' mais rapido
+    # tambem e' arviz.InferenceData e' picklavel diretamente.
     out_idata.parent.mkdir(parents=True, exist_ok=True)
-    idata.to_netcdf(out_idata)
-    print(f"      [checkpoint] posterior salvo em {out_idata}", flush=True)
-    print(f"      [checkpoint] tamanho: {out_idata.stat().st_size / 1024:.1f} KB", flush=True)
+    pkl_path = out_idata.with_suffix(".pkl")
+    import pickle
+    with open(pkl_path, "wb") as f:
+        pickle.dump(idata, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"      [checkpoint] posterior salvo em {pkl_path}", flush=True)
+    print(f"      [checkpoint] tamanho: {pkl_path.stat().st_size / 1024:.1f} KB", flush=True)
 
     # ----- Validação de qualidade MCMC (WARNINGS, nao asserts) -----
     print("      Validando diagnósticos ...", flush=True)
@@ -584,7 +590,7 @@ def main(
         model = build_model(X_train, y_log_train, g_idx_train, genero_cats)
 
         # Fit + CHECKPOINT do posterior (IMEDIATO apos pm.sample, dentro de fit_and_persist).
-        out_idata = out_dir / "k11_posterior.nc"
+        out_idata = out_dir / "k11_posterior.pkl"
         idata, elapsed_min, r_hat, ess_bulk, n_diverging = fit_and_persist(
             model, out_idata, draws=draws, tune=tune, chains=chains
         )

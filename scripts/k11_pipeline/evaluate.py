@@ -367,7 +367,7 @@ def main(artifacts_dir: Path | None = None) -> None:
 
         scaler_path = artifacts_dir / "scaler.json"
         cats_path = artifacts_dir / "genero_cats.json"
-        posterior_path = artifacts_dir / "k11_posterior.nc"
+        posterior_path = artifacts_dir / "k11_posterior.pkl"
         split_path = artifacts_dir / "split_indices.npz"
 
         X = apply_scaler(df, scaler_path)
@@ -401,7 +401,20 @@ def main(artifacts_dir: Path | None = None) -> None:
 
         # --- Carrega posterior ---
         print(f"[4/6] Carregando posterior {posterior_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
-        idata = az.from_netcdf(posterior_path)
+        # Pickle (formato novo). Fallback para .nc (legacy, requer netCDF4).
+        import pickle
+        try:
+            with open(posterior_path, "rb") as f:
+                idata = pickle.load(f)
+        except FileNotFoundError:
+            legacy_nc = posterior_path.with_suffix(".nc")
+            if legacy_nc.exists():
+                idata = az.from_netcdf(legacy_nc)
+            else:
+                raise FileNotFoundError(
+                    f"Posterior nao encontrado em {posterior_path} nem {legacy_nc}. "
+                    "Rode train.py antes (em scripts/k11_pipeline/train.py)."
+                )
         alpha_g_s, beta_g_s = sample_posterior(idata, N_POSTERIOR_SAMPLES, SEED)
 
         # --- Predição em Val e Test (pipeline idêntica) ---

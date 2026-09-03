@@ -190,15 +190,27 @@ def ensure_scaler(out_dir: Path) -> dict:
 # =====================================================================
 # 1) Carregar posterior
 # =====================================================================
-def load_posterior(nc_path: Path) -> az.InferenceData:
-    """Lê o NetCDF e valida o shape mínimo esperado (4 chains x 1000 draws)."""
-    if not nc_path.exists():
-        raise FileNotFoundError(
-            f"Posterior não encontrado em {nc_path}. "
-            "Rode train.py antes (em scripts/k11_pipeline/train.py)."
-        )
-    print(f"[1/4] Lendo {nc_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
-    idata = az.from_netcdf(str(nc_path))
+def load_posterior(pkl_path: Path) -> az.InferenceData:
+    """Lê o posterior pickle e valida o shape mínimo esperado (4 chains x 1000 draws).
+
+    Tenta pickle primeiro (formato novo). Fallback para NetCDF se nao achar pickle
+    (legacy, requer netCDF4 instalado).
+    """
+    if not pkl_path.exists():
+        legacy_nc = pkl_path.with_suffix(".nc")
+        if legacy_nc.exists():
+            print(f"[1/4] Lendo {legacy_nc.relative_to(PIPELINE_ROOT)} (legacy NetCDF) ...", flush=True)
+            idata = az.from_netcdf(str(legacy_nc))
+        else:
+            raise FileNotFoundError(
+                f"Posterior nao encontrado em {pkl_path} nem {legacy_nc}. "
+                "Rode train.py antes (em scripts/k11_pipeline/train.py)."
+            )
+    else:
+        print(f"[1/4] Lendo {pkl_path.relative_to(PIPELINE_ROOT)} ...", flush=True)
+        import pickle
+        with open(pkl_path, "rb") as f:
+            idata = pickle.load(f)
 
     post = idata.posterior
     if "chain" not in post.dims or "draw" not in post.dims:
@@ -338,7 +350,7 @@ def main() -> None:
     print(f"SEED={SEED} | N_SAMPLES={N_SAMPLES} | artifacts={ARTIFACTS_DIR}", flush=True)
     print("=" * 70, flush=True)
 
-    nc_path = ARTIFACTS_DIR / "k11_posterior.nc"
+    nc_path = ARTIFACTS_DIR / "k11_posterior.pkl"
     idata = load_posterior(nc_path)
 
     # Side artifacts.
