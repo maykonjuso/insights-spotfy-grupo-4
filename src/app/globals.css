@@ -3185,3 +3185,492 @@ p {
     padding: 76px 0;
   }
 }
+
+/* ==========================================================================
+   Modo apresentação
+   ========================================================================== */
+
+.retrato {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ac-2);
+  font-size: 17px;
+  font-weight: 800;
+  object-fit: cover;
+}
+
+.retrato.is-pequeno {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+/* ---------------- convite ---------------- */
+
+.convite {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  padding: 0 12px calc(14px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.convite-cartao {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px 14px;
+  width: min(100%, 460px);
+  padding: 16px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
+  background: rgba(24, 24, 28, 0.96);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: sobe 380ms var(--e) both;
+}
+
+.convite-texto {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  min-width: 0;
+}
+
+.convite-texto strong {
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+}
+
+.convite-texto span {
+  color: var(--txt-2);
+  font-size: 13.5px;
+}
+
+.convite-acoes {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.convite-acoes .btn-principal {
+  min-height: 50px;
+}
+
+.convite-acoes .btn-secundario {
+  margin-top: 0;
+  min-height: 44px;
+}
+
+.convite-contagem {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(4, 23, 10, 0.22);
+  font-size: 13px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+/* barra que corre até o aceite automático */
+.convite-barra {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--surface-3);
+}
+
+.convite-barra i {
+  display: block;
+  height: 100%;
+  background: var(--ac);
+  transform-origin: left center;
+  animation: correr linear both;
+}
+
+@keyframes correr {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ---------------- espelho ---------------- */
+
+/* trava tudo: quem acompanha assiste e sai, nada mais responde ao toque */
+.espelho-trava {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  cursor: not-allowed;
+}
+
+.espelho-faixa {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 92;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: min(100% - 20px, 420px);
+  padding: 7px 8px 7px 7px;
+  border: 1px solid rgba(30, 215, 96, 0.4);
+  border-radius: 999px;
+  background: rgba(20, 26, 22, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+  animation: sobe-faixa 420ms var(--e) both;
+}
+
+@keyframes sobe-faixa {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px);
+  }
+}
+
+.espelho-nome {
+  flex: 1;
+  overflow: hidden;
+  color: var(--txt-2);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.espelho-nome strong {
+  color: var(--txt);
+}
+
+.espelho-sair {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ac);
+  color: var(--ac-ink);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.espelho-sair:active {
+  transform: scale(0.95);
+}
+
+/* ---------------- ponteiro e cliques ---------------- */
+
+.espelho-cursor {
+  position: fixed;
+  z-index: 95;
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  color: var(--ac);
+  pointer-events: none;
+  /* a posição vem em fração da tela, então funciona entre aparelhos de
+     tamanhos diferentes; a transição suaviza os 20 envios por segundo */
+  transition: left 90ms linear, top 90ms linear;
+}
+
+.espelho-cursor svg {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+
+.espelho-cursor i {
+  margin-top: 14px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ac);
+  color: var(--ac-ink);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.espelho-clique {
+  position: fixed;
+  z-index: 94;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--ac-2);
+  border-radius: 999px;
+  pointer-events: none;
+  animation: onda-clique 700ms var(--e) both;
+}
+
+@keyframes onda-clique {
+  from {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(4.2);
+  }
+}
+
+/* ---------------- painel do admin ---------------- */
+
+.admin {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 24px max(18px, env(safe-area-inset-left));
+}
+
+.admin-cartao {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 460px);
+  padding: 24px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
+  background: var(--surface);
+}
+
+.admin-cartao h1 {
+  font-size: clamp(24px, 6vw, 30px);
+}
+
+.admin-linha {
+  color: var(--txt-2);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.admin-campo {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-campo span {
+  color: var(--txt-2);
+  font-size: 13px;
+}
+
+.admin-campo input {
+  min-height: 50px;
+  padding: 0 14px;
+  border: var(--borda-cartao);
+  border-radius: 12px;
+  background: #0c0c0e;
+  color: var(--txt);
+}
+
+.admin-foto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-foto .btn-secundario {
+  width: auto;
+  margin-top: 0;
+  padding: 0 18px;
+}
+
+.admin-tirar {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--txt-3);
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.admin-motor {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--txt-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.admin-motor.is-supabase {
+  border-left: 3px solid var(--ac);
+}
+
+.admin-motor.is-sse,
+.admin-motor.is-local {
+  border-left: 3px solid var(--warn);
+}
+
+.admin-voltar {
+  color: var(--txt-3);
+  font-size: 13.5px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.admin-ao-vivo {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(30, 215, 96, 0.35);
+  border-radius: 999px;
+  background: var(--ac-fraco);
+  font-size: 14px;
+}
+
+.admin-ao-vivo span {
+  flex: 1;
+  color: var(--txt-2);
+}
+
+.admin-ao-vivo b {
+  color: var(--ac-2);
+}
+
+.admin-pulso {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--ac);
+  animation: pulso-ar 1.4s ease-in-out infinite;
+}
+
+@keyframes pulso-ar {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+
+.admin-alvos {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-slides {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-passo {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-passo button {
+  min-height: 52px;
+  border: var(--borda-cartao);
+  border-radius: 14px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-passo button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.admin-passo span {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  text-align: center;
+}
+
+.admin-passo i {
+  color: var(--txt-3);
+  font-size: 15px;
+  font-style: normal;
+}
+
+.admin-slide-titulo {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.admin-lista {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.admin-lista button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--txt-2);
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+}
+
+.admin-lista button b {
+  color: var(--txt-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-lista button.is-atual {
+  background: var(--ac-fraco);
+  color: var(--ac-2);
+  font-weight: 700;
+}
+
+.admin-rodape {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-rodape .btn-secundario {
+  margin-top: 0;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.admin-parar {
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--bad);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}

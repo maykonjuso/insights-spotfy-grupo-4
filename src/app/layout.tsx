@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { Apresentacao } from "@/components/apresentacao/Apresentacao";
 import "./globals.css";
 
 // Em aparelho Apple a pilha do CSS pega a SF Pro do proprio sistema; a Inter
@@ -29,7 +30,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        <Apresentacao>{children}</Apresentacao>
+      </body>
     </html>
   );
 }

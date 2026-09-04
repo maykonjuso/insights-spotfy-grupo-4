@@ -191,6 +191,48 @@ Vieram das skills `mobile-principles` e `apple-design` (HIG), instaladas em
 Sem biblioteca de animação: o primeiro carregamento é de ~123 kB de JS, e a
 Essentia (2 MB de WASM) só é baixada quando a pessoa escolhe uma música.
 
+### Página do projeto e modo apresentação
+
+`/projeto` conta como o app foi feito, em dez seções que espelham os dez slides
+da apresentação. Cada seção entra com a rolagem, traz os números direto dos
+arquivos do repositório (com a origem anotada ao lado) e tem blocos que abrem
+sob demanda para quem quiser o detalhe. Três minigames de um toque ensinam as
+conclusões centrais sem tirar a atenção de quem estiver apresentando.
+
+`/admin` liga o modo apresentação. Quem entra coloca o nome e, se quiser, uma
+foto; a partir do "Transmitir", todo mundo com o app aberto recebe um convite
+que se aceita sozinho em cinco segundos. Quem aceita passa a ver a tela de quem
+apresenta, o ponteiro dele e os cliques, e pode sair a qualquer momento pela
+faixa do topo. O painel controla as seções da landing ou libera a navegação
+livre pelo app.
+
+O canal é trocável (`src/lib/transmissao/`), e escolhe sozinho o melhor
+disponível:
+
+| Motor | Quando entra | Alcance |
+|---|---|---|
+| `supabase` | com as chaves do Supabase | entre aparelhos, na Vercel. Websocket, ponteiro fluido |
+| `sse` + Upstash | com as chaves do Upstash | entre aparelhos, na Vercel. Leitura a cada 250ms |
+| `sse` + memória | sem nenhuma chave | entre aparelhos na mesma rede, com uma instância só |
+| `local` | sem `EventSource` | só entre abas do mesmo navegador |
+
+Os dois primeiros resolvem o mesmo problema por caminhos diferentes. Na Vercel,
+cada requisição pode cair num processo diferente e processos não compartilham
+memória, então quem publica nunca encontraria quem escuta: é preciso algo que
+segure estado entre requisições. O Supabase resolve com websocket; o Upstash,
+com uma chave no Redis que a rota SSE lê a cada 250ms.
+
+No caminho do Upstash é o **servidor** quem consulta o Redis, e não o navegador:
+uma conexão por espectador, em vez de cada aparelho batendo no Redis por conta.
+Uma apresentação de 20 minutos com 20 pessoas gasta por volta de 110 mil
+comandos, dentro do plano gratuito. O ritmo de envio do ponteiro se ajusta
+sozinho ao motor (`intervaloDoCursor`), porque mandar mais rápido do que o canal
+entrega só gasta e não deixa a mão mais suave.
+
+O cliente do Supabase é carregado por import dinâmico: são 67 kB que só chegam
+a quem realmente transmite ou acompanha, e não a quem abriu o app para testar
+uma música.
+
 ### Rotas da API
 
 | Rota | O que faz |
@@ -198,7 +240,8 @@ Essentia (2 MB de WASM) só é baixada quando a pessoa escolhe uma música.
 | `POST /api/predict` | Pontua um vetor de 11 features em até 24 gêneros de uma vez. Sem LLM, ~10 ms. É o que sustenta os sliders e a corrida de gêneros. |
 | `POST /api/diagnose` | Mesma nota, mais a explicação em PT-BR gerada por LLM. Devolve `explicacao_status` (`ok`, `sem-chave`, `chave-recusada`, `sem-credito`, `limite`, `falhou`) para a tela dizer o que resolver. Precisa de uma `OPENROUTER_API_KEY` de verdade em `.env.local`: o valor de exemplo passa em qualquer checagem de "variável existe" e só falha depois, com 401. |
 | `GET /api/generos` | Os 107 gêneros que o modelo k=11 conhece. |
-| `GET /api/genres` | Gêneros sugeridos para a busca no catálogo do Spotify (outra lista, outro propósito). |
+| `GET /api/tracks?q=` | Busca por nome de música ou artista. O filtro `genre:` do Spotify só aceita gêneros do catálogo dele, então texto livre precisa de consulta sem filtro. |
+| `GET /api/transmissao` | Canal SSE do modo apresentação, para quando não há Supabase configurado. |
 | `GET /api/tracks`, `/api/tracks/[id]`, `/api/preview/[id]` | Busca, detalhe e prévia de áudio do catálogo. |
 
 O modelo carrega `artifacts/k11_posterior_samples.json.gz` (12 MB, 1.000 amostras do

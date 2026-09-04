@@ -1,14 +1,39 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useApresentacao } from "@/components/apresentacao/Apresentacao";
 import { SECOES, TOTAL_SECOES } from "@/lib/projeto-conteudo";
 import { SecaoProjeto } from "./SecaoProjeto";
 
 export function PaginaProjeto() {
   const [atual, setAtual] = useState(SECOES[0].id);
+  const { seguindo, transmitindo, transmitir } = useApresentacao();
+  const ultimaSecao = useRef("");
 
-  const marcar = useCallback((id: string) => setAtual(id), []);
+  // Acompanhando: a seção vem de quem transmite e a rolagem é comandada.
+  // Sozinho: a seção sai da rolagem da própria pessoa.
+  const marcar = useCallback(
+    (id: string) => {
+      if (seguindo) return;
+      setAtual(id);
+    },
+    [seguindo],
+  );
+
+  useEffect(() => {
+    const alvo = seguindo?.secao;
+    if (!alvo || alvo === ultimaSecao.current) return;
+    ultimaSecao.current = alvo;
+    setAtual(alvo);
+    document.getElementById(alvo)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [seguindo?.secao]);
+
+  // transmitindo daqui: publica a seção que estou lendo
+  useEffect(() => {
+    if (!transmitindo) return;
+    transmitir({ rota: "/projeto", secao: atual, rolagem: 0 });
+  }, [transmitindo, atual, transmitir]);
 
   const indice = Math.max(0, SECOES.findIndex((secao) => secao.id === atual));
   const progresso = ((indice + 1) / TOTAL_SECOES) * 100;
