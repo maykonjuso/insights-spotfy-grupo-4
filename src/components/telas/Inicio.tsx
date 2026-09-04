@@ -13,8 +13,6 @@ type InicioProps = {
 export function Inicio({ onEnviar, onBuscar }: InicioProps) {
   return (
     <section className="inicio">
-      <div className="inicio-brilho" aria-hidden="true" />
-
       <div className="inicio-marca">
         <span className="marca-onda" aria-hidden="true">
           <i />

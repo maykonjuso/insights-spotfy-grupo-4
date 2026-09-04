@@ -54,10 +54,11 @@
 
 html {
   background: var(--bg);
-  /* No html, e não só no body: navegador de celular ignora o overflow-x do
-     body em várias situações, e aí um elemento decorativo que passa da largura
-     vira rolagem lateral. `clip` não cria contexto de rolagem, `hidden` criaria. */
-  overflow-x: clip;
+  /* Aqui NÃO vai overflow. Já tentei `overflow-x: clip` neste seletor para
+     conter o brilho da tela inicial, e isso quebrou o `position: sticky` da
+     barra do topo: o elemento perde o contêiner de rolagem de referência e
+     passa a rolar junto com a página em vez de grudar. A contenção agora é
+     desnecessária, porque o brilho é `position: fixed` e não estoura nada. */
   -webkit-text-size-adjust: 100%;
 }
 
@@ -240,19 +241,17 @@ p {
   padding: 32px 0 40px;
 }
 
-.inicio-brilho {
-  position: absolute;
-  /* Duas coisas precisam ser verdade ao mesmo tempo aqui.
-     1. A caixa tem que passar da tela nos quatro lados, senão a borda dela
-        vira uma aresta visível. Isso é seguro porque o `overflow-x: clip` do
-        html impede que vire rolagem lateral.
-     2. O degradê tem que chegar a transparente ANTES da borda da caixa. Com
-        `150%` de largura, na beirada a cor ainda estava forte e o corte
-        aparecia como um retângulo. Com a elipse em 70% x 60% centrada, a
-        transparência chega bem antes em todas as direções. */
-  inset: -260px -40% auto;
-  height: 540px;
-  background: radial-gradient(70% 60% at 50% 50%, rgba(30, 215, 96, 0.3), transparent 72%);
+.brilho-fundo {
+  /* fixo na janela: cobre a largura inteira sem depender da coluna do app, e
+     elemento fixo não aumenta a área rolável, então não existe rolagem lateral
+     para conter. O degradê chega a transparente bem antes das bordas, então
+     não há aresta em lugar nenhum. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 62vh;
+  background: radial-gradient(58% 68% at 50% 14%, rgba(30, 215, 96, 0.3), transparent 70%);
   pointer-events: none;
   animation: respira 7s ease-in-out infinite alternate;
 }
