@@ -65,8 +65,11 @@ html {
 body {
   min-height: 100svh;
   margin: 0;
+  /* único brilho que sobrou, e de propósito: discreto, no fundo da página
+     inteira. A versão anterior era um elemento próprio na tela inicial, que
+     rendeu estouro de largura e quebra de sticky sem acrescentar nada. */
   background:
-    radial-gradient(120% 60% at 50% -10%, rgba(30, 215, 96, 0.14), transparent 60%),
+    radial-gradient(100% 52% at 50% -12%, rgba(30, 215, 96, 0.09), transparent 62%),
     var(--bg);
   color: var(--txt);
   /* SF Pro no aparelho da Apple, Inter no resto. A ordem importa: -apple-system
@@ -239,28 +242,6 @@ p {
   grid-template-columns: minmax(0, 1fr);
   gap: 26px;
   padding: 32px 0 40px;
-}
-
-.brilho-fundo {
-  /* fixo na janela: cobre a largura inteira sem depender da coluna do app, e
-     elemento fixo não aumenta a área rolável, então não existe rolagem lateral
-     para conter. O degradê chega a transparente bem antes das bordas, então
-     não há aresta em lugar nenhum. */
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 62vh;
-  background: radial-gradient(58% 68% at 50% 14%, rgba(30, 215, 96, 0.3), transparent 70%);
-  pointer-events: none;
-  animation: respira 7s ease-in-out infinite alternate;
-}
-
-@keyframes respira {
-  to {
-    opacity: 0.5;
-    transform: translateY(12px) scale(1.1);
-  }
 }
 
 .inicio-marca {
@@ -1810,7 +1791,6 @@ p {
   transform: translate3d(0, 0, 0);
 }
 
-
 .bloco {
   display: grid;
   gap: 4px;
@@ -2418,7 +2398,6 @@ p {
    de ouvir. O icone ocupa quase metade do botao, senao um triangulo pequeno
    dentro de um circulo grande parece um erro de alinhamento. */
 
-
 .player.is-sem-botao {
   grid-template-columns: minmax(0, 1fr) auto;
   padding: 10px 16px;
@@ -2621,8 +2600,6 @@ p {
   font-size: 13.5px;
   font-weight: 700;
 }
-
-
 
 /* ---------------- telas maiores ---------------- */
 

@@ -118,13 +118,6 @@ export function App() {
           e sobrava fundo preto nas laterais. */}
       {tela === "abertura" ? <Abertura onFim={() => setTela("inicio")} /> : null}
 
-      {/* Fora do .troca de propósito: ali dentro existe uma animação com
-          transform, e um ancestral transformado vira o ponto de referência de
-          um filho `position: fixed`. Aqui no .app, que não tem transform, ele
-          se resolve contra a janela e cobre a largura toda sem sangrar nada
-          para fora do documento. */}
-      {tela === "inicio" ? <span className="brilho-fundo" aria-hidden="true" /> : null}
-
       <div className="troca" key={tela}>
         {tela === "inicio" ? (
           <Inicio onEnviar={() => irPara("enviar")} onBuscar={() => irPara("buscar")} />
