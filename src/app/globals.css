@@ -1215,6 +1215,31 @@ p {
   font-weight: 700;
 }
 
+/* Wave 4 honesty pass: disclaimer experimental no TOPO do cartao de nota.
+   Texto deliberadamente grande para nao passar despercebido. */
+.nota-disclaimer {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  color: var(--txt-1);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Flag de cobertura empirica do HDI (Wave 4 B2): 94% nominal, 40% real. */
+.nota-cobertura {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 3px;
+  color: var(--txt-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
 .nota-esperando {
   display: grid;
   justify-items: center;
