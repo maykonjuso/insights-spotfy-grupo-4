@@ -1,0 +1,23 @@
+======================================================================
+export_for_nextjs — Posterior -> JSON para Next.js
+SEED=42 | N_SAMPLES=1000 | artifacts=/content/drive/MyDrive/k11_pipeline/artifacts
+======================================================================
+[1/4] Lendo artifacts/k11_posterior.nc ...
+      chains=4 | draws=1000 | total=4000
+      feature_names=11 | genero_cats=107
+[2/4] Calculando sumário ...
+[3/4] Empilhando chains e sub-amostrando 1000 samples ...
+Traceback (most recent call last):
+  File "/content/drive/MyDrive/k11_pipeline/export.py", line 377, in <module>
+    main()
+    ~~~~^^
+  File "/content/drive/MyDrive/k11_pipeline/export.py", line 354, in main
+    samples = build_samples(idata)
+  File "/content/drive/MyDrive/k11_pipeline/export.py", line 271, in build_samples
+    stacked = post.stack(sample=("chain", "draw"))  # dims: sample, ...
+              ^^^^^^^^^^
+  File "/usr/local/lib/python3.13/dist-packages/xarray/core/common.py", line 306, in __getattr__
+    raise AttributeError(
+        f"{type(self).__name__!r} object has no attribute {name!r}"
+    )
+AttributeError: 'DataTree' object has no attribute 'stack'

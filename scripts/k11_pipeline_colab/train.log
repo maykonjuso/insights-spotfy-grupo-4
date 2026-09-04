@@ -1,0 +1,43 @@
+======================================================================
+train_k11 — Modelo Bayesiano Hierárquico K=11
+SEED=42 | K=11 | jax backend=gpu | devices=1 | draws=1000 tune=1500 chains=4 | out=artifacts
+======================================================================
+[1/8] Lendo spotify_tracks_limpo.parquet ...
+      Removidos 5969 faixas não-musicais. Restantes: 83,771
+[2/8] Construindo K=11 e dropna ...
+      dropna: 19 removidos. Restantes: 83,752
+[3/8] Z-score + log1p(target) ...
+      X.shape=(83752, 11), y_log.shape=(83752,)
+      #generos: 107
+      [checkpoint] scaler/feature_names/genero_cats salvos em /content/drive/MyDrive/k11_pipeline/artifacts
+[4/8] Split 70/15/15 ...
+      train=58,626 | val=12,562 | test=12,564
+[5/8] Construindo modelo PyMC ...
+      coords: genero=107, feature=11
+[6/8] Ajustando NUTS (numpyro, 4 chains, draws=1000, tune=1500) ...
+NUTS[numpyro]: [mu_alpha, sigma_alpha, mu_beta, sigma_beta, z_alpha, z_beta, sigma_y]
+/usr/local/lib/python3.13/dist-packages/pymc/sampling/jax.py:463: UserWarning: There are not enough devices to run parallel chains: expected 4 but got 1. Chains will be drawn sequentially. If you are running MCMC in CPU, consider using `numpyro.set_host_device_count(4)` at the beginning of your program. You can double-check how many devices are available in your system using `jax.local_device_count()`.
+  pmap_numpyro = MCMC(
+The effective sample size per chain is smaller than 100 for some parameters.  A higher number is needed for reliable rhat and ess computation. See https://arxiv.org/abs/1903.08008 for details
+[7/8] Fit concluído em 72.21 min.
+      [checkpoint] posterior salvo em /content/drive/MyDrive/k11_pipeline/artifacts/k11_posterior.nc
+      [checkpoint] tamanho: 88375.4 KB
+      Validando diagnósticos ...
+      r_hat max=1.0097
+      ess_bulk min=307.3
+      divergências=0
+      [WARN] ess_bulk.min()=307.3 <= 400 -- considere aumentar tune/draws
+      [INFO] O posterior FOI salvo mesmo assim. Avalie as metricas no evaluate.py antes de decidir re-treinar.
+[8/8] Salvamento completo.
+
+======================================================================
+RESULTADO
+  tempo de fit      : 72.21 min
+  r_hat range       : [0.9992, 1.0097]
+  ess_bulk range    : [307.3, 11902.7]
+  divergências      : 0
+  #generos no modelo: 107
+  K (features)      : 11
+======================================================================
+
+[OK] Artefatos salvos em /content/drive/MyDrive/k11_pipeline/artifacts/. Pode rodar evaluate.py mesmo se os diagnosticos estiverem ruins.

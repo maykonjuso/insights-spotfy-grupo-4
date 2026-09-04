@@ -1,0 +1,45 @@
+======================================================================
+evaluate_k11 — Avaliação offline K=11 (Val + Test)
+SEED=42 | n_samples=1000 | HDI=94% | artifacts=artifacts
+======================================================================
+[1/6] Lendo spotify_tracks_limpo.parquet ...
+      Removidos 5969 faixas não-musicais. Restantes: 83,771
+[2/6] Construindo K=11 e dropna ...
+      dropna: 19 removidos. Restantes: 83,752
+[3/6] Aplicando scaler de artifacts/scaler.json ...
+      X.shape=(83752, 11)
+      splits: train=58,626 | val=12,562 | test=12,564
+[4/6] Carregando posterior artifacts/k11_posterior.nc ...
+      posterior sub-amostrado: 1000/4000
+[5/6] Predição em Val e Test ...
+      Val  RMSE=19.471  MAE=12.848  R²=0.133  log-RMSE=0.995  HDI94=0.392
+      Test RMSE=19.123  MAE=12.743  R²=0.152  log-RMSE=0.981  HDI94=0.400
+      [checkpoint] relatorio/analises/resultados/q11_val_metrics.csv
+      [checkpoint] relatorio/analises/resultados/q11_test_metrics.csv
+      Per-gênero (Test, top 10):
+        forro                    n=  162  RMSE=4.024  MAE=3.147
+        bluegrass                n=  159  RMSE=8.457  MAE=4.693
+        club                     n=  157  RMSE=12.819  MAE=11.053
+        anime                    n=  157  RMSE=12.195  MAE=9.368
+        j-idol                   n=  157  RMSE=9.569  MAE=6.416
+        detroit-techno           n=  156  RMSE=7.111  MAE=4.387
+        french                   n=  154  RMSE=17.539  MAE=13.801
+        iranian                  n=  152  RMSE=4.608  MAE=2.432
+        british                  n=  152  RMSE=25.277  MAE=22.610
+        dance                    n=  152  RMSE=37.877  MAE=22.375
+      [checkpoint] relatorio/analises/resultados/q11_per_genre.csv
+      ECE (Test) = 6.5579
+      [checkpoint] relatorio/analises/resultados/q11_calibration.csv
+[6/6] ASSERT VIOLADO: test_rmse=19.1228 >= 18.0
+      [checkpoint] relatorio/analises/resultados/q11_summary.json
+
+======================================================================
+ARTEFATOS SALVOS
+  relatorio/analises/resultados/q11_val_metrics.csv
+  relatorio/analises/resultados/q11_test_metrics.csv
+  relatorio/analises/resultados/q11_per_genre.csv
+  relatorio/analises/resultados/q11_calibration.csv
+  relatorio/analises/resultados/q11_summary.json
+  assertions_passed = False
+======================================================================
+  [WARN] assertions FALHARAM (RMSE=19.1228, R²=0.1521, HDI94=0.4004). q11_summary.json foi salvo mesmo assim.

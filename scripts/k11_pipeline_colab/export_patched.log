@@ -1,0 +1,22 @@
+======================================================================
+export_for_nextjs — Posterior -> JSON para Next.js
+SEED=42 | N_SAMPLES=1000 | artifacts=/content/drive/MyDrive/k11_pipeline/artifacts
+======================================================================
+[1/4] Lendo artifacts/k11_posterior.nc ...
+      chains=4 | draws=1000 | total=4000
+      feature_names=11 | genero_cats=107
+[2/4] Calculando sumário ...
+[3/4] Empilhando chains e sub-amostrando 1000 samples ...
+      total=4000 -> selecionados=1000
+[4/4] Escrevendo artefatos ...
+      - artifacts/k11_posterior_summary.json
+      - artifacts/k11_posterior_samples.json.gz
+
+======================================================================
+ARTEFATOS GERADOS
+  k11_posterior_summary.json                 56.12 KB
+  k11_posterior_samples.json.gz           11908.63 KB
+  scaler.json                                 0.75 KB
+  feature_names.json                          0.17 KB
+  genero_cats.json                            1.37 KB
+======================================================================
