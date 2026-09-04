@@ -54,6 +54,10 @@
 
 html {
   background: var(--bg);
+  /* No html, e não só no body: navegador de celular ignora o overflow-x do
+     body em várias situações, e aí um elemento decorativo que passa da largura
+     vira rolagem lateral. `clip` não cria contexto de rolagem, `hidden` criaria. */
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -129,6 +133,15 @@ p {
   justify-content: center;
 }
 
+/* `justify-content: center` no .app não tinha efeito nenhum: .troca tem
+   flex: 1 e consome todo o espaço livre, então não sobrava nada para
+   centralizar. O conteúdo ficava colado no topo e o resto da tela vazio.
+   Centralizar dentro do próprio .troca resolve, e ele continua preenchendo. */
+.app.is-inicio .troca {
+  display: grid;
+  align-content: center;
+}
+
 .troca {
   flex: 1;
   animation: entra 300ms var(--e) both;
@@ -173,7 +186,7 @@ p {
   grid-template-columns: 48px minmax(0, 1fr) 48px;
   gap: 8px;
   align-items: center;
-  margin: 0 calc(-1 * var(--lado)) 8px calc(-1 * var(--lado));
+  margin: 0 calc(-1 * var(--lado-dir)) 8px calc(-1 * var(--lado));
   padding: max(8px, env(safe-area-inset-top)) var(--lado) 10px;
   border-bottom: 1px solid transparent;
   background: rgba(8, 8, 10, 0.82);
@@ -222,15 +235,24 @@ p {
 .inicio {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 26px;
   padding: 32px 0 40px;
 }
 
 .inicio-brilho {
   position: absolute;
-  inset: -18% -30% auto;
-  height: 320px;
-  background: radial-gradient(circle at 50% 0, rgba(30, 215, 96, 0.3), transparent 66%);
+  /* Duas coisas precisam ser verdade ao mesmo tempo aqui.
+     1. A caixa tem que passar da tela nos quatro lados, senão a borda dela
+        vira uma aresta visível. Isso é seguro porque o `overflow-x: clip` do
+        html impede que vire rolagem lateral.
+     2. O degradê tem que chegar a transparente ANTES da borda da caixa. Com
+        `150%` de largura, na beirada a cor ainda estava forte e o corte
+        aparecia como um retângulo. Com a elipse em 70% x 60% centrada, a
+        transparência chega bem antes em todas as direções. */
+  inset: -260px -40% auto;
+  height: 540px;
+  background: radial-gradient(70% 60% at 50% 50%, rgba(30, 215, 96, 0.3), transparent 72%);
   pointer-events: none;
   animation: respira 7s ease-in-out infinite alternate;
 }
@@ -245,8 +267,10 @@ p {
 .inicio-marca {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  min-width: 0;
   color: var(--ac-2);
   font-size: 12px;
   font-weight: 800;
@@ -293,6 +317,7 @@ p {
 .inicio-copy {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -312,6 +337,7 @@ p {
 .inicio-opcoes {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -352,8 +378,13 @@ p {
 
 .opcao-texto {
   display: grid;
+  /* minmax(0, 1fr) e nao a coluna implicita `auto`: com `white-space: nowrap`
+     no small, a largura minima do conteudo vira a frase inteira, a trilha
+     cresce ate isso e o texto vaza para fora do cartao. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .opcao-texto strong {
@@ -392,6 +423,7 @@ p {
 .inicio-rodape {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 10px;
   color: var(--txt-3);
@@ -425,6 +457,9 @@ p {
   z-index: 80;
   display: grid;
   place-items: center;
+  /* o halo tem 115vw de propósito, para o brilho sangrar; sem recortar aqui,
+     ele viraria rolagem lateral durante a abertura */
+  overflow: hidden;
   padding: 24px;
   /* Preenche ate as bordas (raio largo evita o anel preto em tela larga), mas
      o verde entra so como um sopro atras da marca: a base e quase preta, com
@@ -583,8 +618,8 @@ p {
   position: sticky;
   bottom: 0;
   z-index: 15;
-  margin: 8px calc(-1 * var(--lado)) 0;
-  padding: 14px var(--lado) calc(14px + env(safe-area-inset-bottom));
+  margin: 8px calc(-1 * var(--lado-dir)) 0 calc(-1 * var(--lado));
+  padding: 14px var(--lado-dir) calc(14px + env(safe-area-inset-bottom)) var(--lado);
   background: linear-gradient(180deg, rgba(8, 8, 10, 0), rgba(8, 8, 10, 0.95) 40%);
 }
 
