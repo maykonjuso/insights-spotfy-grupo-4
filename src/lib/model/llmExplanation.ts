@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import type { Prediction } from './types';
 
-const MODELO = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash-0731';
+const MODELO = process.env.OPENROUTER_MODEL || 'inception/mercury-2.5-preview';
 
 // Instanciado sob demanda: no topo do modulo, o SDK lanca durante o build
 // quando nao ha chave, e derruba a rota inteira -- inclusive o score, que nao
