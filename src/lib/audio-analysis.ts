@@ -4,6 +4,24 @@ import type { AnalysisRequest, AnalysisResponse } from "@/workers/audio-analysis
 import { classifyAudio, type Classification } from "./genre-classifier";
 import { describeWithEssentia, type EssentiaDescriptors } from "./essentia-analysis";
 
+// Orquestrador client-side da analise de audio.
+//
+// Verificado em Wave 3 (build-worker):
+//   - Web Worker real (new Worker(new URL(...))) e usado por padrao.
+//   - Transferable usado: postMessage(request, [copy.buffer]) — o buffer
+//     PCM (30s @ 22050 Hz = ~2,6 MB) sai sem copia para a thread do worker.
+//   - Se Worker indisponivel (CSP, SSR, browser antigo), cai em
+//     runOnMainThread() — analise roda na thread principal mas a UI pode
+//     travar por ~3-5s.
+//   - Se a Essentia falhar dentro do worker, ha uma 2a tentativa na
+//     thread principal (describeSafely) antes de desistir dos descritores.
+//   - classifyAudio (rede neural do genero) roda sempre no worker para
+//     manter a main thread livre.
+//
+// Tempo esperado ponta-a-ponta (UI): 3-5s para 30s de audio
+//   - 1a chamada: ~3,5s (WASM init one-shot + DSP + 4 descritores + 6 wrappers + classifyAudio)
+//   - chamadas seguintes: ~1-2s (WASM ja carregado)
+
 export type AudioAnalysis = {
   classification: Classification | null;
   descriptors: EssentiaDescriptors | null;
