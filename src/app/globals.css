@@ -1217,28 +1217,8 @@ p {
 
 /* Wave 4 honesty pass: disclaimer experimental no TOPO do cartao de nota.
    Texto deliberadamente grande para nao passar despercebido. */
-.nota-disclaimer {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  background: rgba(245, 158, 11, 0.08);
-  border-left: 3px solid var(--warn);
-  border-radius: 4px;
-  color: var(--txt-1);
-  font-size: 13px;
-  line-height: 1.45;
-}
 
 /* Flag de cobertura empirica do HDI (Wave 4 B2): 94% nominal, 40% real. */
-.nota-cobertura {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  background: rgba(239, 68, 68, 0.06);
-  border-left: 2px solid rgba(239, 68, 68, 0.4);
-  border-radius: 3px;
-  color: var(--txt-2);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
 
 .nota-esperando {
   display: grid;
@@ -4811,4 +4791,129 @@ p {
   .projeto {
     transition: none;
   }
+}
+
+
+/* ---------------- selo de honestidade ---------------- */
+
+/* O aviso de que a nota é indicativo vive aqui: discreto ao lado do número,
+   e com os três valores que o sustentam quando alguém quiser conferir. */
+
+.selo {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  margin-top: -4px;
+}
+
+.selo-toque {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 8px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--txt-3);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.selo-toque:active {
+  color: var(--txt-2);
+}
+
+.selo-glifo {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.selo-seta {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  transition: transform 0.28s var(--e);
+}
+
+.selo-seta svg {
+  width: 14px;
+  height: 14px;
+}
+
+.selo.is-aberto .selo-seta {
+  transform: rotate(180deg);
+}
+
+.selo-caixa {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  overflow: hidden;
+  transition: grid-template-rows 0.34s var(--e);
+}
+
+.selo.is-aberto .selo-caixa {
+  grid-template-rows: 1fr;
+}
+
+.selo-corpo {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 2px;
+  text-align: left;
+}
+
+.selo.is-aberto .selo-corpo {
+  padding-top: 12px;
+}
+
+/* cada número entra escalonado quando abre */
+.selo-corpo p {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  opacity: 0;
+  transform: translate3d(0, -6px, 0);
+  transition: opacity 0.3s var(--e), transform 0.34s var(--e);
+}
+
+.selo.is-aberto .selo-corpo p {
+  opacity: 1;
+  transform: none;
+}
+
+.selo-corpo b {
+  color: var(--warn);
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-align: right;
+}
+
+.selo-corpo span {
+  color: var(--txt-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.selo-corpo small {
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  color: var(--txt-3);
+  font-size: 12.5px;
+  line-height: 1.55;
 }

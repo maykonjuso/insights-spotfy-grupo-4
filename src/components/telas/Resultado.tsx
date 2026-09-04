@@ -14,6 +14,7 @@ import { WhatIfPanel } from "../WhatIfPanel";
 import { useEstadoEspelhado } from "../apresentacao/Apresentacao";
 import { Alterna } from "../ui/Alterna";
 import { BrilhoIA, PensandoIA } from "../ui/PensandoIA";
+import { SeloHonestidade } from "../ui/SeloHonestidade";
 import { ResumoFixo } from "../ui/ResumoFixo";
 import { Revelar } from "../ui/Revelar";
 import { Sheet } from "../ui/Sheet";
@@ -40,13 +41,6 @@ function frase(score: number, genero: string) {
   if (score >= 35) return `Tem uma chance razoável em ${genero}.`;
   return `Começa em desvantagem em ${genero}.`;
 }
-
-// Disclaimer experimental (Wave 4 honesty pass). R^2=0.15 e HDI coverage=0.40
-// vem de scripts/k11_pipeline_colab/relatorio/analises/resultados/q11_summary.json.
-// Texto em linguagem leiga -- jargao "R^2=0.15" e estatistico, "explica ~15% da
-// variacao" e o que o usuario precisa entender.
-const DISCLAIMER_K11 =
-  "O modelo Bayesiano deste diagnóstico é experimental e fraco: explica apenas ~15% da variação real entre hits e não-hits, e erra em média 19 pontos em escala 0-100. Use o score como sinal fraco, não como predição exata.";
 
 export function Resultado({ musica, onRecomecar }: ResultadoProps) {
   const veredito = useVeredito(musica.features, musica.generoInicial);
@@ -183,10 +177,6 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
       <div className="cartao-nota">
         {veredito.pronto ? (
           <>
-            {/* Disclaimer no TOPO do card, antes do score (Wave 4 M1).
-                Estava escondido embaixo do score; quem decide publica nao via. */}
-            <p className="nota-disclaimer"><strong>{DISCLAIMER_K11}</strong></p>
-
             <div className="mostrador-alvo" ref={mostradorRef}>
               <ScoreDial
                 score={veredito.score}
@@ -201,15 +191,11 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
               Nota de 0 a 100 em popularidade. O modelo aposta que o valor real fica entre{" "}
               {veredito.hdi?.[0]} e {veredito.hdi?.[1]}.
             </p>
-            {/* HDI coverage flag (Wave 4 B2): lembrar que o "94% de credibilidade"
-                so cobre 40% dos casos empiricamente. Em 60% o valor real esta
-                FORA do intervalo. */}
-            {veredito.hdi ? (
-              <p className="nota-cobertura">
-                <strong>Cobertura empírica: 40%</strong> (nominal: 94%). Em 60% dos casos o valor real está
-                fora deste intervalo — confie no score como sinal fraco, não como ponto preciso.
-              </p>
-            ) : null}
+            {/* O aviso de que a nota é indicativo, e não previsão, com os três
+                números que sustentam isso. Vinha como parágrafo em negrito
+                acima do próprio score, competindo com ele; aqui fica logo
+                abaixo e abre sob demanda, sem perder nada do conteúdo. */}
+            <SeloHonestidade />
           </>
         ) : (
           <div className="nota-esperando">
