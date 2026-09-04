@@ -273,8 +273,15 @@ export function PainelAdmin() {
           <Link href={alvo === "landing" ? "/projeto" : "/"} className="btn-secundario">
             Abrir o que estou apresentando
           </Link>
-          <button type="button" className="admin-parar" onClick={encerrar}>
-            Encerrar apresentação
+          <button
+            type="button"
+            className="admin-parar"
+            onClick={() => {
+              if (typeof window !== "undefined" && !window.confirm("Encerrar todas as apresentações ativas?")) return;
+              encerrar();
+            }}
+          >
+            Encerrar todas as apresentações
           </button>
         </div>
       </div>
