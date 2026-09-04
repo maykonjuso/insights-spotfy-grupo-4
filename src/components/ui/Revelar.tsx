@@ -44,9 +44,14 @@ export function Revelar({ titulo, resumo, children, abertoInicial = false }: Rev
         </span>
       </button>
 
-      <div className="revelar-corpo" id={id} hidden={!aberto}>
-        {children}
-      </div>
+      {/* Fechado, o conteudo nem e montado. Com `hidden` ele continuava no DOM
+          e era reconstruido a cada render da tela; arrastar um slider refazia
+          a lista de estilos e a grade de medidas 60 vezes por segundo. */}
+      {aberto ? (
+        <div className="revelar-corpo" id={id}>
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }

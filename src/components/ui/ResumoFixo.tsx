@@ -34,7 +34,9 @@ export function ResumoFixo({
   calculando,
   editado,
 }: ResumoFixoProps) {
-  const animado = useAnimatedNumber(score, 420);
+  // Escondido, o numero acompanha o valor sem contar: animar fora da tela
+  // deixava a contagem no meio do caminho quando a barra reaparecia.
+  const animado = useAnimatedNumber(score, visivel ? 420 : 0);
 
   // Vai para o body por portal. A tela de resultado vive dentro de um container
   // que anima com transform, e qualquer ancestral transformado passa a ser o
@@ -68,9 +70,7 @@ export function ResumoFixo({
       </span>
 
       <span className={`resumo-nota ${calculando ? "is-ocupado" : ""}`}>
-        <strong style={visivel ? { viewTransitionName: "nota-score" } : undefined}>
-          {Math.round(animado)}
-        </strong>
+        <strong>{Math.round(animado)}</strong>
         <small>{legenda}</small>
       </span>
       </div>

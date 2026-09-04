@@ -33,6 +33,10 @@
 
   --r: 14px;
   --r-lg: 22px;
+  /* Raio e borda unicos para toda superficie de cartao. Antes cada bloco tinha
+     o seu, e o cartao da nota ficava mais duro que os vizinhos. */
+  --r-cartao: 18px;
+  --borda-cartao: 1px solid var(--line);
   --e: cubic-bezier(0.22, 1, 0.36, 1);
   --e-mola: cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -173,7 +177,7 @@ p {
   padding: max(8px, env(safe-area-inset-top)) var(--lado) 10px;
   border-bottom: 1px solid transparent;
   background: rgba(8, 8, 10, 0.82);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
 }
 
 .topbar-titulo {
@@ -318,8 +322,8 @@ p {
   align-items: center;
   min-height: 82px;
   padding: 15px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
   background: var(--surface);
   cursor: pointer;
   text-align: left;
@@ -591,7 +595,7 @@ p {
   min-height: 50px;
   margin-top: 14px;
   padding: 0 18px;
-  border: 1px solid var(--line-forte);
+  border: var(--borda-cartao);
   border-radius: 999px;
   background: var(--surface-2);
   cursor: pointer;
@@ -1058,8 +1062,8 @@ p {
   justify-items: center;
   gap: 14px;
   padding: 22px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
   background: linear-gradient(180deg, var(--surface), rgba(20, 20, 23, 0.6));
   text-align: center;
 }
@@ -1165,8 +1169,8 @@ p {
    atencao, o mostrador vem logo abaixo confirmando com o numero. */
 .explicacao {
   padding: 18px;
-  border: 1px solid rgba(30, 215, 96, 0.28);
-  border-radius: var(--r-lg);
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
   background: linear-gradient(160deg, rgba(30, 215, 96, 0.1), var(--surface) 58%);
 }
 
@@ -1341,9 +1345,9 @@ p {
     rgba(8, 8, 10, 0.86) 62%,
     rgba(8, 8, 10, 0) 100%
   );
-  backdrop-filter: blur(7px);
-  /* a mascara corta o proprio blur junto com a cor; sem ela o desfoque
-     terminaria numa linha reta visivel no fim do degrade */
+  /* Sem backdrop-filter aqui de proposito: o degrade sozinho ja esconde o
+     conteudo, e tres desfoques de fundo empilhados sobre a pagina rolando
+     eram a maior parte do travamento ao arrastar os sliders. */
   mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
   opacity: 0;
@@ -1372,14 +1376,14 @@ p {
      Antes tinha largura propria e ficava desalinhada com o resto da tela. */
   width: calc(min(100%, 560px) - var(--lado) - var(--lado-dir));
   padding: 9px 14px 9px 9px;
-  border: 1px solid var(--line-forte);
+  border: var(--borda-cartao);
   border-radius: 999px;
   background: rgba(24, 24, 28, 0.94);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(10px);
   opacity: 0;
-  transform: translateX(-50%) translateY(-14px) scale(0.97);
-  transition: opacity 0.24s var(--e), transform 0.28s var(--e);
+  transform: translateX(-50%) translateY(-20px) scale(0.94);
+  transition: opacity 0.22s var(--e), transform 0.32s var(--e);
   pointer-events: none;
 }
 
@@ -1388,13 +1392,17 @@ p {
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
-/* Onde a View Transitions API nao existe, o numero ao menos entra grande e
-   encolhe: le como se o mostrador que saiu da tela tivesse virado este resumo.
-   Onde a API existe, quem anima e ela, e esta regra sairia por cima. */
-@supports not (view-transition-name: none) {
-  .resumo-fixo.is-visivel .resumo-nota strong {
-    animation: nota-encolhe 460ms var(--e-mola) both;
-  }
+/* O numero entra grande e encolhe: le como se o mostrador que acabou de sair
+   da tela tivesse virado este resumo.
+
+   Ja tentei aqui uma transicao de elemento compartilhado (View Transitions), que
+   morfava o numero de uma posicao a outra. Foi descartada: a API levanta o
+   elemento para uma camada de retrato que pinta acima de tudo, entao o numero
+   passava por cima do cabecalho, o retrato antigo da pagina ficava na tela ate
+   a transicao acabar, e a contagem animada do valor brigava com o flushSync.
+   Transicao de CSS resolve os dois sentidos sem nenhum desses efeitos. */
+.resumo-fixo.is-visivel .resumo-nota strong {
+  animation: nota-encolhe 420ms var(--e-mola) both;
 }
 
 @keyframes nota-encolhe {
@@ -1490,42 +1498,6 @@ p {
   opacity: 0.55;
 }
 
-/* ---------------- viagem do numero entre o mostrador e o topo ---------------- */
-
-/* Os dois numeros compartilham o mesmo view-transition-name, um de cada vez,
-   entao o navegador anima o percurso completo entre as duas posicoes e
-   tamanhos. Serve nos dois sentidos: descendo, o numero sobe para a barra;
-   subindo, ele volta para dentro do mostrador. */
-
-::view-transition-group(nota-score) {
-  animation-duration: 480ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-::view-transition-old(nota-score),
-::view-transition-new(nota-score) {
-  /* so o numero muda de lugar; deixar o navegador tambem esmaecer os dois
-     deixaria o texto lavado no meio do caminho */
-  animation: none;
-  mix-blend-mode: normal;
-  height: 100%;
-}
-
-/* O padrao da API e um cross-fade da pagina inteira. Durante a rolagem isso
-   pisca a tela toda a cada cruzamento do limite, entao fica desligado: quem
-   viaja e so o numero. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(nota-score) {
-    animation-duration: 0.001ms;
-  }
-}
-
 /* ---------------- detalhe sob demanda ---------------- */
 
 .reveladores {
@@ -1534,8 +1506,8 @@ p {
 }
 
 .revelar {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
   background: var(--surface);
   overflow: hidden;
 }
@@ -2067,8 +2039,9 @@ p {
   display: grid;
   gap: 8px;
   padding: 14px;
-  border-radius: var(--r);
+  border-radius: var(--r-cartao);
   background: var(--surface-2);
+  border: var(--borda-cartao);
 }
 
 .album-label {
@@ -2145,8 +2118,9 @@ p {
   display: grid;
   gap: 8px;
   padding: 14px;
-  border-radius: var(--r);
+  border-radius: var(--r-cartao);
   background: var(--surface-2);
+  border: var(--borda-cartao);
 }
 
 .genre-bar {
@@ -2223,8 +2197,8 @@ p {
   gap: 14px;
   align-items: center;
   padding: 10px 16px 10px 10px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
   background: linear-gradient(180deg, var(--surface), rgba(20, 20, 23, 0.55));
   transition: border-color 0.25s ease, background 0.25s ease;
 }
@@ -2426,7 +2400,7 @@ p {
   min-height: 50px;
   margin: 0 auto;
   padding: 0 26px;
-  border: 1px solid var(--line-forte);
+  border: var(--borda-cartao);
   background: var(--surface-2);
   box-shadow: none;
   color: var(--txt);

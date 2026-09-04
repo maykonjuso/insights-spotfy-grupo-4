@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import type { SoundFeatureGroup } from "@/lib/sound-features";
 
 type SoundFeatureGridProps = {
@@ -14,7 +16,7 @@ const ORIGIN_LABEL = {
   estimativa: "estimado",
 } as const;
 
-export function SoundFeatureGrid({ groups }: SoundFeatureGridProps) {
+function SoundFeatureGridBase({ groups }: SoundFeatureGridProps) {
   return (
     <div className="feature-groups">
       {groups.map((group) => (
@@ -47,3 +49,7 @@ export function SoundFeatureGrid({ groups }: SoundFeatureGridProps) {
     </div>
   );
 }
+
+// memo: as props destes blocos nao mudam quando o slider se mexe, entao nao
+// ha por que reconstrui-los a cada evento de arrasto.
+export const SoundFeatureGrid = memo(SoundFeatureGridBase);

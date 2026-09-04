@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 export type ResultadoGenero = {
   genero: string;
   score: number;
@@ -13,7 +15,7 @@ type GenreRaceProps = {
   onEscolher: (genero: string) => void;
 };
 
-export function GenreRace({ resultados, generoAtual, carregando, onEscolher }: GenreRaceProps) {
+function GenreRaceBase({ resultados, generoAtual, carregando, onEscolher }: GenreRaceProps) {
   const teto = Math.max(40, ...resultados.map((item) => item.hdi_94[1]));
 
   return (
@@ -56,3 +58,7 @@ export function GenreRace({ resultados, generoAtual, carregando, onEscolher }: G
     </section>
   );
 }
+
+// memo: as props destes blocos nao mudam quando o slider se mexe, entao nao
+// ha por que reconstrui-los a cada evento de arrasto.
+export const GenreRace = memo(GenreRaceBase);

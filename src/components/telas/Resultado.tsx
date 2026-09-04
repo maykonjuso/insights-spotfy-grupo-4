@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVeredito } from "@/hooks/useVeredito";
 import type { Musica } from "@/lib/analisar";
 import { GENEROS_RECONHECIDOS, reconhecidoDeOuvido } from "@/lib/model-bridge";
@@ -40,39 +39,6 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
   const [catalogo, setCatalogo] = useState<string[]>([]);
   const [filtro, setFiltro] = useState("");
 
-  // Troca o estado dentro de uma transicao de elemento compartilhado: os dois
-  // numeros (o do mostrador e o do topo) carregam o mesmo view-transition-name,
-  // um de cada vez, entao o navegador anima a viagem de um ate o outro sozinho.
-  // Vale nos dois sentidos, descendo e subindo, sem calcular posicao na mao.
-  //
-  // flushSync porque a API precisa do DOM ja atualizado dentro do callback.
-  const emTransicao = useRef(false);
-
-  const trocarResumo = useCallback((valor: boolean) => {
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
-    };
-
-    const semSuporte = typeof doc.startViewTransition !== "function";
-    const querMenosMovimento =
-      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    // rolagem rapida cruza o limite varias vezes; enfileirar transicoes ai
-    // trava a pagina, entao a troca vira instantanea enquanto uma esta rodando
-    if (semSuporte || querMenosMovimento || emTransicao.current) {
-      setNotaNaTela(valor);
-      return;
-    }
-
-    emTransicao.current = true;
-    const transicao = doc.startViewTransition!(() => {
-      flushSync(() => setNotaNaTela(valor));
-    });
-    void transicao.finished.finally(() => {
-      emTransicao.current = false;
-    });
-  }, []);
-
   // O gatilho e o mostrador, nao o cartao inteiro: o cartao ainda tem frase,
   // escala e botao de estilo embaixo, entao esperar ele sumir fazia a barra
   // chegar tarde, com o numero fora da tela ha muito tempo.
@@ -85,13 +51,13 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
     if (!alvo || typeof IntersectionObserver === "undefined") return;
 
     const observador = new IntersectionObserver(
-      ([entrada]) => trocarResumo(entrada.intersectionRatio >= 0.5),
+      ([entrada]) => setNotaNaTela(entrada.intersectionRatio >= 0.5),
       { rootMargin: "-70px 0px 0px 0px", threshold: [0, 0.25, 0.5, 0.75, 1] },
     );
 
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [veredito.pronto, trocarResumo]);
+  }, [veredito.pronto]);
 
   useEffect(() => {
     fetch("/api/generos")
@@ -210,7 +176,6 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
                 hdi={veredito.hdi}
                 legenda={faixaDeScore(veredito.score)}
                 ocupado={veredito.calculando}
-                ancorado={notaNaTela}
               />
             </div>
 
@@ -309,7 +274,10 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
         </button>
       </div>
 
-      <Sheet aberta={folhaAberta} titulo="Escolher o estilo" onFechar={() => setFolhaAberta(false)}>
+      {/* children de um componente sao avaliados mesmo quando ele devolve null,
+          entao a folha fechada ainda montava os 107 botoes a cada render */}
+      {folhaAberta ? (
+      <Sheet aberta titulo="Escolher o estilo" onFechar={() => setFolhaAberta(false)}>
         <div className="campo-busca is-folha">
           <span aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -374,6 +342,7 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           <p className="aviso">Nenhum estilo com esse nome.</p>
         ) : null}
       </Sheet>
+      ) : null}
     </section>
   );
 }
