@@ -52,9 +52,11 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
                 value={valor}
                 onChange={(evento) => definir(chave, Number(evento.target.value))}
               />
-              {mexido ? (
+              {/* sempre montado: so assim ele tem como animar tambem ao sumir,
+                  e este liga e desliga a cada arrasto do dedo */}
+              <span className={`alterna ${mexido ? "is-on" : ""}`} aria-hidden={!mexido}>
                 <small>original {formatFeature(meta, original)}</small>
-              ) : null}
+              </span>
             </div>
           );
         })}
@@ -79,11 +81,11 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
         })}
       </div>
 
-      {alterado ? (
+      <span className={`alterna ${alterado ? "is-on" : ""}`} inert={!alterado}>
         <button type="button" className="btn-secundario" onClick={onReset}>
           Voltar à música original
         </button>
-      ) : null}
+      </span>
     </section>
   );
 }

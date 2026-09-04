@@ -153,11 +153,14 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           <p className="aviso">{veredito.motivoSemTexto}</p>
         ) : null}
 
-        {veredito.explicacaoVelha && !veredito.explicando ? (
+        <span
+          className={`alterna ${veredito.explicacaoVelha && !veredito.explicando ? "is-on" : ""}`}
+          inert={!veredito.explicacaoVelha || veredito.explicando}
+        >
           <button type="button" className="btn-secundario" onClick={veredito.reexplicar}>
             Explicar esta versão
           </button>
-        ) : null}
+        </span>
       </div>
 
       <div className="cartao-nota">
@@ -217,14 +220,16 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           </div>
         ) : null}
 
-        {!reconhecidoDeOuvido(veredito.genero) ? (
+        <span className={`alterna ${!reconhecidoDeOuvido(veredito.genero) ? "is-on" : ""}`}>
           <p className="nota-manual">
             Este estilo foi escolha sua. O app não consegue identificá-lo só de ouvir a música, então a
             leitura do som ao lado pode apontar um vizinho parecido.
           </p>
-        ) : null}
+        </span>
 
-        {mexeu ? <p className="nota-editada">Você mudou o som. Esta nota é da sua versão.</p> : null}
+        <span className={`alterna ${mexeu ? "is-on" : ""}`}>
+          <p className="nota-editada">Você mudou o som. Esta nota é da sua versão.</p>
+        </span>
       </div>
 
       <div className="reveladores">

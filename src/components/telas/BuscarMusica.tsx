@@ -88,11 +88,14 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
           spellCheck={false}
           enterKeyHint="search"
         />
-        {busca ? (
-          <button type="button" onClick={enviarBusca}>
-            Ir
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={`campo-ir ${busca ? "is-on" : ""}`}
+          onClick={enviarBusca}
+          inert={!busca}
+        >
+          Ir
+        </button>
       </div>
 
       <div className="chips-rolagem" role="group" aria-label="Estilos sugeridos">

@@ -765,9 +765,12 @@ p {
   color: var(--txt-3);
 }
 
-.campo-busca button {
+/* O "Ir" fica sempre montado e encolhe ate sumir, para entrar e sair animado
+   em vez de piscar quando o campo ganha e perde texto. */
+.campo-ir {
   min-height: 40px;
-  padding: 0 16px;
+  max-width: 0;
+  padding: 0;
   border: 0;
   border-radius: 999px;
   background: var(--ac);
@@ -775,6 +778,21 @@ p {
   cursor: pointer;
   font-size: 14px;
   font-weight: 800;
+  opacity: 0;
+  overflow: hidden;
+  transform: scale(0.8);
+  transition:
+    max-width 0.26s var(--e),
+    padding 0.26s var(--e),
+    opacity 0.2s var(--e),
+    transform 0.26s var(--e-mola);
+}
+
+.campo-ir.is-on {
+  max-width: 80px;
+  padding: 0 16px;
+  opacity: 1;
+  transform: scale(1);
 }
 
 .chips-rolagem {
@@ -1387,23 +1405,30 @@ p {
    nitido nas frestas das bordas arredondadas. */
 .resumo-veu {
   position: fixed;
-  top: var(--alt-topbar);
+  /* sobe 2px para entrar por baixo do cabecalho: emendar exatamente deixaria
+     qualquer arredondamento virar uma linha nitida entre os dois desfoques */
+  top: calc(var(--alt-topbar) - 2px);
   left: 0;
   right: 0;
   z-index: 17;
-  height: 116px;
+  height: 102px;
+  /* Translucido, e nao preto solido: o conteudo continua aparecendo desfocado
+     por tras, igual ao cabecalho. Antes o topo do degrade era a cor de fundo
+     em cheio e a faixa virava uma tarja preta no meio da tela. */
+  /* comeca na mesma opacidade do cabecalho (0.82) para os dois lerem como uma
+     superficie so, sem degrau de tom na emenda */
   background: linear-gradient(
     180deg,
-    var(--bg) 0%,
-    var(--bg) 34%,
-    rgba(8, 8, 10, 0.86) 62%,
+    rgba(8, 8, 10, 0.82) 0%,
+    rgba(8, 8, 10, 0.78) 46%,
     rgba(8, 8, 10, 0) 100%
   );
-  /* Sem backdrop-filter aqui de proposito: o degrade sozinho ja esconde o
-     conteudo, e tres desfoques de fundo empilhados sobre a pagina rolando
-     eram a maior parte do travamento ao arrastar os sliders. */
-  mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+  /* Este e o unico desfoque desta regiao: a barra da nota fica por cima e usa
+     o resultado dele, em vez de rodar um segundo backdrop-filter no mesmo
+     pedaco de tela. */
+  backdrop-filter: blur(12px);
+  mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
   opacity: 0;
   transition: opacity 0.28s var(--e);
   pointer-events: none;
@@ -1432,9 +1457,11 @@ p {
   padding: 9px 14px 9px 9px;
   border: var(--borda-cartao);
   border-radius: 999px;
-  background: rgba(24, 24, 28, 0.94);
+  /* sem backdrop-filter proprio: o veu logo atras ja desfocou esta regiao, e
+     dois desfoques de fundo no mesmo pedaco de tela custam o dobro sem
+     aparecer nada a mais */
+  background: rgba(26, 26, 31, 0.9);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(10px);
   opacity: 0;
   transform: translateX(-50%) translateY(-20px) scale(0.94);
   transition: opacity 0.22s var(--e), transform 0.32s var(--e);
@@ -1552,6 +1579,79 @@ p {
   opacity: 0.55;
 }
 
+/* ---------------- aparecer e sumir ---------------- */
+
+/* Duas ferramentas para tudo que entra e sai da tela.
+
+   `.surge` e so entrada: serve para o que aparece uma vez e fica (avisos,
+   esqueletos, estados de carregamento).
+
+   `.alterna` anima nos dois sentidos, para o que liga e desliga durante o uso
+   (o rotulo do valor original num slider, o botao de desfazer). O elemento
+   fica sempre montado e a linha do grid vai de 0fr a 1fr, entao a altura
+   acompanha o conteudo sem ninguem medir nada em JavaScript. */
+
+.surge {
+  animation: entra 300ms var(--e) both;
+}
+
+.alterna {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.28s var(--e),
+    opacity 0.2s var(--e),
+    transform 0.28s var(--e);
+  transform: translate3d(0, -4px, 0);
+  pointer-events: none;
+}
+
+.alterna > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.alterna.is-on {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  pointer-events: auto;
+}
+
+/* aplicado direto no que ja existia, para nao ter que marcar cada um na mao */
+.aviso,
+.empty-state,
+.nota-esperando,
+.pensando {
+  animation: entra 300ms var(--e) both;
+}
+
+.faixa-esqueleto {
+  animation:
+    entra 260ms var(--e) both,
+    brilho 1.4s ease-in-out infinite;
+}
+
+.race-skeleton span {
+  animation:
+    entra 260ms var(--e) both,
+    brilho 1.4s ease-in-out infinite;
+}
+
+/* o mostrador chega junto com a frase e a escala, e nao de uma vez */
+.cartao-nota .mostrador-alvo {
+  animation: entra 360ms var(--e) both;
+}
+
+.cartao-nota .nota-frase {
+  animation: entra 360ms var(--e) 80ms both;
+}
+
+.cartao-nota .nota-escala {
+  animation: entra 360ms var(--e) 140ms both;
+}
+
 /* ---------------- detalhe sob demanda ---------------- */
 
 .reveladores {
@@ -1618,17 +1718,34 @@ p {
   transform: rotate(180deg);
 }
 
-.revelar-corpo {
-  padding: 0 16px 18px;
-  animation: abre 300ms var(--e) both;
+/* 0fr -> 1fr transiciona ate a altura real do conteudo sem medir nada em
+   JavaScript, e vale nos dois sentidos. O conteudo ainda faz um leve fade e
+   sobe, para a abertura nao parecer so uma gaveta esticando. */
+.revelar-caixa {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms var(--e);
 }
 
-@keyframes abre {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -6px, 0);
-  }
+.revelar.is-aberto .revelar-caixa {
+  grid-template-rows: 1fr;
 }
+
+.revelar-corpo {
+  min-height: 0;
+  padding: 0 16px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translate3d(0, -6px, 0);
+  transition: opacity 0.24s var(--e), transform 0.28s var(--e), padding-bottom 0.32s var(--e);
+}
+
+.revelar.is-aberto .revelar-corpo {
+  padding-bottom: 18px;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
 
 .bloco {
   display: grid;
@@ -2007,8 +2124,15 @@ p {
 }
 
 .slider-row small {
+  display: block;
   color: var(--txt-3);
   font-size: 11.5px;
+}
+
+/* dentro do slider e da nota o alterna nao pode empurrar o vizinho ao abrir */
+.slider-row .alterna,
+.cartao-nota .alterna {
+  width: 100%;
 }
 
 .slider-row input[type="range"] {

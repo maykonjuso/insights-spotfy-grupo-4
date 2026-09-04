@@ -19,8 +19,14 @@ export function TopBar({ titulo, onVoltar, rotuloVoltar = "Voltar" }: TopBarProp
     const alvo = barra.current;
     if (!alvo) return;
 
+    // getBoundingClientRect e fracionario; offsetHeight arredonda para inteiro,
+    // e meio pixel de diferenca virava uma fresta sem desfoque entre esta barra
+    // e o veu de baixo, aparecendo como um risco na tela.
     const medir = () =>
-      document.documentElement.style.setProperty("--alt-topbar", `${alvo.offsetHeight}px`);
+      document.documentElement.style.setProperty(
+        "--alt-topbar",
+        `${alvo.getBoundingClientRect().height}px`,
+      );
 
     medir();
 
