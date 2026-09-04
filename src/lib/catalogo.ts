@@ -29,8 +29,19 @@ type Entrada =
 
 const cache = new Map<string, Entrada>();
 
-async function buscar(estilo: string): Promise<Faixa[]> {
-  const resposta = await fetch(`/api/tracks?genre=${encodeURIComponent(estilo)}`);
+// chave "q:<termo>" e busca por nome de musica; qualquer outra e estilo
+function urlDe(chave: string) {
+  return chave.startsWith("q:")
+    ? `/api/tracks?q=${encodeURIComponent(chave.slice(2))}`
+    : `/api/tracks?genre=${encodeURIComponent(chave)}`;
+}
+
+export function chaveDeBusca(termo: string) {
+  return `q:${termo.trim().toLowerCase()}`;
+}
+
+async function buscar(chave: string): Promise<Faixa[]> {
+  const resposta = await fetch(urlDe(chave));
   const dados = (await resposta.json()) as { tracks?: Faixa[]; error?: string };
 
   if (!resposta.ok) {
@@ -45,7 +56,8 @@ async function buscar(estilo: string): Promise<Faixa[]> {
 }
 
 /** Dispara a busca sem esperar. Chamar de novo com o mesmo estilo não repete. */
-export function prefetch(estilo: string) {
+export function prefetch(chave: string) {
+  const estilo = chave;
   const atual = cache.get(estilo);
   if (atual && atual.estado !== "erro") return;
 

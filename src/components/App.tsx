@@ -79,8 +79,11 @@ export function App() {
     void rodar("enviar", arquivo.name.replace(/\.[^.]+$/, ""), () => analisarArquivo(arquivo, setEtapa));
   }
 
-  function comFaixa(faixa: Faixa) {
-    void rodar("buscar", faixa.name, () => analisarFaixa(faixa, genero, setEtapa));
+  // estilo vazio significa que a musica veio de uma busca por nome; ai quem
+  // decide o estilo da analise e o classificador, nao um chip que a pessoa
+  // nem chegou a tocar
+  function comFaixa(faixa: Faixa, estilo: string) {
+    void rodar("buscar", faixa.name, () => analisarFaixa(faixa, estilo, setEtapa));
   }
 
   function recomecar() {

@@ -2,6 +2,7 @@
 
 import { FEATURE_META, formatFeature, type ModelFeatureKey } from "@/lib/model-bridge";
 import type { TrackFeatures } from "@/lib/model/types";
+import { Alterna } from "./ui/Alterna";
 
 // As features que fazem sentido o usuario mexer para simular uma versao
 // diferente da faixa. instrumentalness/liveness/speechiness ficam de fora dos
@@ -52,11 +53,9 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
                 value={valor}
                 onChange={(evento) => definir(chave, Number(evento.target.value))}
               />
-              {/* sempre montado: so assim ele tem como animar tambem ao sumir,
-                  e este liga e desliga a cada arrasto do dedo */}
-              <span className={`alterna ${mexido ? "is-on" : ""}`} aria-hidden={!mexido}>
+              <Alterna ligado={mexido}>
                 <small>original {formatFeature(meta, original)}</small>
-              </span>
+              </Alterna>
             </div>
           );
         })}
@@ -81,11 +80,11 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
         })}
       </div>
 
-      <span className={`alterna ${alterado ? "is-on" : ""}`} inert={!alterado}>
+      <Alterna ligado={alterado}>
         <button type="button" className="btn-secundario" onClick={onReset}>
           Voltar à música original
         </button>
-      </span>
+      </Alterna>
     </section>
   );
 }

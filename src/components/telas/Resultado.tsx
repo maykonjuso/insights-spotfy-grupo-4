@@ -11,6 +11,7 @@ import { PreviewPlayer } from "../PreviewPlayer";
 import { ScoreDial } from "../ScoreDial";
 import { SoundFeatureGrid } from "../SoundFeatureGrid";
 import { WhatIfPanel } from "../WhatIfPanel";
+import { Alterna } from "../ui/Alterna";
 import { PensandoIA } from "../ui/PensandoIA";
 import { ResumoFixo } from "../ui/ResumoFixo";
 import { Revelar } from "../ui/Revelar";
@@ -153,14 +154,11 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           <p className="aviso">{veredito.motivoSemTexto}</p>
         ) : null}
 
-        <span
-          className={`alterna ${veredito.explicacaoVelha && !veredito.explicando ? "is-on" : ""}`}
-          inert={!veredito.explicacaoVelha || veredito.explicando}
-        >
+        <Alterna ligado={veredito.explicacaoVelha && !veredito.explicando}>
           <button type="button" className="btn-secundario" onClick={veredito.reexplicar}>
             Explicar esta versão
           </button>
-        </span>
+        </Alterna>
       </div>
 
       <div className="cartao-nota">
@@ -220,16 +218,16 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           </div>
         ) : null}
 
-        <span className={`alterna ${!reconhecidoDeOuvido(veredito.genero) ? "is-on" : ""}`}>
+        <Alterna ligado={!reconhecidoDeOuvido(veredito.genero)}>
           <p className="nota-manual">
             Este estilo foi escolha sua. O app não consegue identificá-lo só de ouvir a música, então a
             leitura do som ao lado pode apontar um vizinho parecido.
           </p>
-        </span>
+        </Alterna>
 
-        <span className={`alterna ${mexeu ? "is-on" : ""}`}>
+        <Alterna ligado={mexeu}>
           <p className="nota-editada">Você mudou o som. Esta nota é da sua versão.</p>
-        </span>
+        </Alterna>
       </div>
 
       <div className="reveladores">

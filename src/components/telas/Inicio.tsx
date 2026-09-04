@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { siSpotify } from "simple-icons";
 
 type InicioProps = {
@@ -90,7 +91,12 @@ export function Inicio({ onEnviar, onBuscar }: InicioProps) {
 
       </div>
 
-      <p className="inicio-rodape">A música não sai do seu aparelho. Leva menos de um minuto.</p>
+      <p className="inicio-rodape">
+        A música não sai do seu aparelho. Leva menos de um minuto.
+        <Link href="/projeto" className="inicio-link">
+          Como isso foi feito
+        </Link>
+      </p>
     </section>
   );
 }

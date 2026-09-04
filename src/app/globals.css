@@ -391,9 +391,27 @@ p {
 
 .inicio-rodape {
   position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
   color: var(--txt-3);
   font-size: 13px;
   text-align: center;
+}
+
+/* discreto de proposito: quem chegou para testar uma musica nao pode tropecar
+   nele, mas quem quer entender o projeto precisa achar sem procurar muito */
+.inicio-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-forte);
+  color: var(--txt-2);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 /* ---------------- tela de apresentacao ---------------- */
@@ -1598,6 +1616,9 @@ p {
 .alterna {
   display: grid;
   grid-template-rows: 0fr;
+  /* clipa qualquer margem do filho: sem isto, um botao com margin-top dentro
+     de uma linha de altura zero ainda empurrava o conteudo de baixo */
+  overflow: hidden;
   opacity: 0;
   transition:
     grid-template-rows 0.28s var(--e),
@@ -1607,9 +1628,13 @@ p {
   pointer-events: none;
 }
 
-.alterna > * {
+.alterna-conteudo {
+  display: block;
   min-height: 0;
-  overflow: hidden;
+}
+
+.alterna .btn-secundario {
+  margin-top: 12px;
 }
 
 .alterna.is-on {
@@ -1617,6 +1642,11 @@ p {
   opacity: 1;
   transform: translate3d(0, 0, 0);
   pointer-events: auto;
+}
+
+/* o botao secundario dentro do alterna nao carrega margem propria para fora */
+.btn-secundario {
+  margin-top: 0;
 }
 
 /* aplicado direto no que ja existia, para nao ter que marcar cada um na mao */
@@ -2662,5 +2692,496 @@ p {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* ==========================================================================
+   Landing do projeto (/projeto)
+
+   Uma seção por slide da apresentação. Cada bloco entra quando chega na tela,
+   e o índice de topo acompanha onde a pessoa está. As mesmas regras do app
+   valem aqui: alvo de 44px, hover só como enfeite, tudo cede a
+   prefers-reduced-motion.
+   ========================================================================== */
+
+.projeto {
+  --lado-projeto: max(20px, env(safe-area-inset-left));
+  width: 100%;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
+
+.projeto-barra {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  height: 3px;
+  background: var(--surface-2);
+}
+
+.projeto-barra i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ac), var(--ac-2));
+  transform-origin: left center;
+  transition: transform 0.4s var(--e);
+}
+
+.projeto-topo {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(12px, env(safe-area-inset-top)) var(--lado-projeto) 12px;
+  background: rgba(8, 8, 10, 0.82);
+  backdrop-filter: blur(12px);
+}
+
+.projeto-voltar {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--txt);
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.projeto-voltar svg {
+  width: 20px;
+  height: 20px;
+}
+
+.projeto-marca {
+  color: var(--ac-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* índice: rolagem horizontal em celular, coluna fixa em tela larga */
+.projeto-indice {
+  position: sticky;
+  top: 62px;
+  z-index: 24;
+  display: flex;
+  gap: 8px;
+  padding: 8px var(--lado-projeto) 12px;
+  overflow-x: auto;
+  background: linear-gradient(180deg, rgba(8, 8, 10, 0.92), rgba(8, 8, 10, 0));
+  scrollbar-width: none;
+}
+
+.projeto-indice::-webkit-scrollbar {
+  display: none;
+}
+
+.projeto-indice button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--txt-3);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.projeto-indice button.is-atual {
+  border-color: transparent;
+  background: var(--ac);
+  color: var(--ac-ink);
+}
+
+.projeto-corpo {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 0 var(--lado-projeto);
+}
+
+/* ---------------- seção ---------------- */
+
+.secao {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.secao:last-of-type {
+  border-bottom: 0;
+}
+
+.secao-topo {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.secao-etiqueta {
+  color: var(--ac-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.secao-contador {
+  color: var(--txt-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.secao-contador i {
+  color: var(--surface-3);
+  font-style: normal;
+}
+
+.secao-titulo {
+  margin: 0 0 14px;
+  font-size: clamp(28px, 7vw, 42px);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.secao-linha {
+  max-width: 46ch;
+  color: var(--txt-2);
+  font-size: clamp(16px, 4.2vw, 18px);
+  line-height: 1.55;
+}
+
+.secao-texto {
+  max-width: 62ch;
+  margin-top: 18px;
+  color: var(--txt-2);
+  font-size: 15.5px;
+  line-height: 1.7;
+}
+
+/* entrada: cada parte sobe um pouco depois da anterior */
+.secao-titulo,
+.secao-linha,
+.secao-texto,
+.metricas,
+.secao-lista,
+.jogo,
+.secao-fundos {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 0.55s var(--e), transform 0.6s var(--e);
+}
+
+.secao.is-dentro .secao-titulo {
+  opacity: 1;
+  transform: none;
+}
+
+.secao.is-dentro .secao-linha {
+  opacity: 1;
+  transform: none;
+  transition-delay: 90ms;
+}
+
+.secao.is-dentro .metricas,
+.secao.is-dentro .secao-texto {
+  opacity: 1;
+  transform: none;
+  transition-delay: 160ms;
+}
+
+.secao.is-dentro .secao-lista,
+.secao.is-dentro .jogo {
+  opacity: 1;
+  transform: none;
+  transition-delay: 220ms;
+}
+
+.secao.is-dentro .secao-fundos {
+  opacity: 1;
+  transform: none;
+  transition-delay: 280ms;
+}
+
+/* ---------------- métricas ---------------- */
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.metrica {
+  display: grid;
+  gap: 3px;
+  padding: 16px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
+  background: linear-gradient(160deg, rgba(30, 215, 96, 0.07), var(--surface) 62%);
+}
+
+.metrica strong {
+  font-size: clamp(26px, 6.5vw, 34px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.metrica span {
+  color: var(--txt-2);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.metrica small {
+  margin-top: 4px;
+  color: var(--txt-3);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------------- lista ---------------- */
+
+.secao-lista {
+  display: grid;
+  gap: 10px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.secao-lista li {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
+  background: var(--surface);
+}
+
+.secao-lista strong {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.secao-lista span {
+  color: var(--txt-2);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+/* ---------------- aprofundamentos ---------------- */
+
+.secao-fundos {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.fundo-corpo {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.fundo-corpo p {
+  color: var(--txt-2);
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+/* ---------------- minijogos ---------------- */
+
+.jogo {
+  display: grid;
+  gap: 14px;
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid rgba(30, 215, 96, 0.3);
+  border-radius: var(--r-cartao);
+  background: linear-gradient(160deg, rgba(30, 215, 96, 0.09), var(--surface) 60%);
+}
+
+.jogo-pergunta {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.jogo-opcoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.jogo-opcao {
+  display: grid;
+  gap: 4px;
+  min-height: 66px;
+  padding: 12px;
+  border: 1px solid var(--line-forte);
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.16s var(--e), border-color 0.25s ease, background 0.25s ease, opacity 0.25s ease;
+}
+
+.jogo-opcao:active {
+  transform: scale(0.96);
+}
+
+.jogo-opcao strong {
+  font-size: 15px;
+}
+
+.jogo-detalhe {
+  color: var(--txt-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.jogo-opcao.is-certa {
+  border-color: var(--ac);
+  background: rgba(30, 215, 96, 0.16);
+  animation: acertou 500ms var(--e-mola) both;
+}
+
+.jogo-opcao.is-certa .jogo-detalhe {
+  color: var(--ac-2);
+}
+
+@keyframes acertou {
+  40% {
+    transform: scale(1.05);
+  }
+}
+
+.jogo-opcao.is-errada {
+  border-color: rgba(255, 107, 107, 0.5);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.jogo-opcao.is-apagada {
+  opacity: 0.4;
+}
+
+.jogo-opcao:disabled {
+  cursor: default;
+}
+
+.jogo-licao {
+  color: var(--txt-2);
+  font-size: 14.5px;
+  line-height: 1.6;
+  animation: entra 400ms var(--e) both;
+}
+
+.jogo-licao b {
+  color: var(--txt);
+}
+
+.jogo-slider {
+  display: grid;
+  gap: 6px;
+}
+
+.jogo-slider output {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.jogo-slider input[type="range"] {
+  width: 100%;
+  height: 40px;
+  accent-color: var(--ac);
+  cursor: pointer;
+}
+
+.jogo-botao {
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ac);
+  color: var(--ac-ink);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+  transition: transform 0.16s var(--e), background 0.2s ease;
+}
+
+.jogo-botao:active {
+  transform: scale(0.97);
+}
+
+.jogo-botao:disabled {
+  background: var(--surface-3);
+  color: var(--txt-3);
+  cursor: progress;
+}
+
+.jogo-placar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  animation: entra 400ms var(--e) both;
+}
+
+.jogo-placar span {
+  color: var(--txt-2);
+  font-size: 14px;
+}
+
+.jogo-placar b {
+  color: var(--txt);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.jogo-placar .is-perto b {
+  color: var(--ac-2);
+}
+
+/* ---------------- fim ---------------- */
+
+.projeto-fim {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding: 56px 0 24px;
+  text-align: center;
+}
+
+.projeto-fim p {
+  color: var(--txt-3);
+  font-size: 13px;
+}
+
+.projeto-fim .btn-principal {
+  width: auto;
+  min-width: 260px;
+  text-decoration: none;
+}
+
+@media (min-width: 900px) {
+  .secao {
+    padding: 76px 0;
   }
 }

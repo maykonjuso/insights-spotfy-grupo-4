@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { carregar, ESTILOS, jaTemos, prefetch, type Faixa } from "@/lib/catalogo";
+import { carregar, chaveDeBusca, ESTILOS, jaTemos, prefetch, type Faixa } from "@/lib/catalogo";
 import { durationLabel } from "@/lib/insights";
 import { PlayButton } from "../PlayButton";
 
@@ -10,24 +10,33 @@ export type { Faixa };
 type BuscarMusicaProps = {
   genero: string;
   onGenero: (genero: string) => void;
-  onEscolher: (faixa: Faixa) => void;
+  /** `estilo` vem vazio quando a pessoa achou a música pelo nome: nesse caso
+   * quem decide o estilo da análise é o classificador, e não um chip. */
+  onEscolher: (faixa: Faixa, estilo: string) => void;
 };
 
 // Estilo e lista na mesma tela: tocar num estilo ja troca a lista embaixo,
 // sem ida e volta entre telas para comparar.
 export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps) {
+  const [busca, setBusca] = useState("");
+  // chave da lista mostrada agora: um estilo, ou "q:<termo>" quando a pessoa
+  // procurou pelo nome da musica
+  const [chave, setChave] = useState(genero);
+
   // o que a abertura ja trouxe aparece no primeiro quadro, sem esqueleto
-  const prontas = jaTemos(genero);
+  const prontas = jaTemos(chave);
   const [faixas, setFaixas] = useState<Faixa[]>(prontas ?? []);
   const [carregando, setCarregando] = useState(prontas === null);
   const [erro, setErro] = useState<string | null>(null);
-  const [busca, setBusca] = useState("");
+
+  const porNome = chave.startsWith("q:");
+  const termo = porNome ? chave.slice(2) : "";
 
   useEffect(() => {
-    if (!genero) return;
+    if (!chave) return;
     let valido = true;
 
-    const emMemoria = jaTemos(genero);
+    const emMemoria = jaTemos(chave);
     if (emMemoria) {
       setFaixas(emMemoria);
       setCarregando(false);
@@ -38,7 +47,7 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
     setCarregando(true);
     setErro(null);
 
-    carregar(genero)
+    carregar(chave)
       .then((lista) => {
         if (!valido) return;
         setFaixas(lista);
@@ -55,18 +64,24 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
     return () => {
       valido = false;
     };
-  }, [genero]);
+  }, [chave]);
 
   function enviarBusca() {
-    const valor = busca.trim().toLowerCase();
-    if (valor) onGenero(valor);
+    const valor = busca.trim();
+    if (valor.length >= 2) setChave(chaveDeBusca(valor));
+  }
+
+  function escolherEstilo(estilo: string) {
+    setBusca("");
+    setChave(estilo);
+    onGenero(estilo);
   }
 
   return (
     <section className="tela">
       <div className="tela-copy">
         <h2>Escolha uma música</h2>
-        <p>Toque no estilo para trocar a lista. O botão de play toca um trecho.</p>
+        <p>Procure pelo nome, ou toque num estilo para ver referências.</p>
       </div>
 
       <div className="campo-busca">
@@ -82,8 +97,8 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
           onKeyDown={(evento) => {
             if (evento.key === "Enter") enviarBusca();
           }}
-          placeholder="Buscar um estilo, como forró…"
-          aria-label="Buscar um estilo musical"
+          placeholder="Nome da música ou do artista…"
+          aria-label="Buscar uma música pelo nome"
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
@@ -103,11 +118,11 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
           <button
             type="button"
             key={item.valor}
-            className={`chip ${item.valor === genero ? "is-ativo" : ""}`}
-            onClick={() => onGenero(item.valor)}
+            className={`chip ${item.valor === chave ? "is-ativo" : ""}`}
+            onClick={() => escolherEstilo(item.valor)}
             // tocar ja adianta a busca; se a pessoa so passar o dedo, nada se perde
             onPointerEnter={() => prefetch(item.valor)}
-            aria-pressed={item.valor === genero}
+            aria-pressed={item.valor === chave}
           >
             {item.rotulo}
           </button>
@@ -126,7 +141,11 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
           : null}
 
         {!carregando && faixas.length === 0 && !erro ? (
-          <p className="aviso">Não achei músicas de {genero} com trecho para escutar. Tente outro estilo.</p>
+          <p className="aviso">
+            {porNome
+              ? `Não achei nenhuma música com "${termo}" que tenha trecho para escutar.`
+              : `Não achei músicas de ${chave} com trecho para escutar. Tente outro estilo.`}
+          </p>
         ) : null}
 
         {!carregando
@@ -139,7 +158,11 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
                   capa={faixa.album.images.at(-1)?.url ?? null}
                 />
 
-                <button type="button" className="faixa-toque" onClick={() => onEscolher(faixa)}>
+                <button
+                  type="button"
+                  className="faixa-toque"
+                  onClick={() => onEscolher(faixa, porNome ? "" : chave)}
+                >
                   <span className="faixa-texto">
                     <strong>{faixa.name}</strong>
                     <small>{faixa.artists.map((artista) => artista.name).join(", ")}</small>

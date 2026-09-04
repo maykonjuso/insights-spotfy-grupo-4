@@ -41,16 +41,24 @@ async function comAudio(candidatos: SpotifyTrack[]) {
 
 export async function GET(request: NextRequest) {
   const genre = request.nextUrl.searchParams.get("genre")?.trim();
+  const termo = request.nextUrl.searchParams.get("q")?.trim();
 
-  if (!genre) {
-    return NextResponse.json({ error: "Informe um gênero musical." }, { status: 400 });
+  if (!genre && !termo) {
+    return NextResponse.json({ error: "Informe um estilo ou um nome de música." }, { status: 400 });
   }
+
+  // Duas formas de buscar no mesmo endpoint: por estilo (`genre:"pop"`, usado
+  // pelos atalhos) ou por texto livre (nome da musica ou do artista). O filtro
+  // genre: do Spotify so aceita generos do catalogo dele, entao digitar o nome
+  // de uma musica ali nunca devolvia nada -- era o que fazia a barra parecer
+  // quebrada.
+  const consulta = termo ? termo : `genre:"${genre}"`;
 
   // a busca aceita no maximo limit=10 nesta credencial; o offset e o que
   // permite juntar candidatos suficientes para sobrar 10 faixas com audio
   function paginaUrl(offset: number) {
     const params = new URLSearchParams({
-      q: `genre:"${genre}"`,
+      q: consulta,
       type: "track",
       limit: "10",
       offset: String(offset),
@@ -73,16 +81,27 @@ export async function GET(request: NextRequest) {
       throw primeira && primeira.status === "rejected" ? primeira.reason : new Error("busca vazia");
     }
 
+    // Na busca por texto o Spotify devolve a mesma musica em varios albuns
+    // (single, coletanea, ao vivo). Agrupar por nome + artista evita uma lista
+    // com quatro linhas iguais.
     const seen = new Set<string>();
     const candidatos = itens.filter((track) => {
-      if (seen.has(track.id)) return false;
-      seen.add(track.id);
+      const chave = termo
+        ? `${track.name.toLowerCase()}|${track.artists[0]?.name.toLowerCase() ?? ""}`
+        : track.id;
+      if (seen.has(chave)) return false;
+      seen.add(chave);
       return true;
     });
 
     const tracks = await comAudio(candidatos);
 
-    return NextResponse.json({ genre, tracks, analisadas: candidatos.length });
+    return NextResponse.json({
+      genre: genre ?? null,
+      q: termo ?? null,
+      tracks,
+      analisadas: candidatos.length,
+    });
   } catch (error) {
     if (error instanceof SpotifyConfigError) {
       return NextResponse.json(
