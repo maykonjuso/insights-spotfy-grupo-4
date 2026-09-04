@@ -19,12 +19,25 @@ import type { Mensagem } from "./tipos";
  *   contador em lugar nenhum.
  */
 
-export type Marcas = { estado: number; cursor: number; clique: number };
+export type Marcas = { estado: number; cursor: number; clique: number; fim: number };
 
-export const SEM_MARCAS: Marcas = { estado: 0, cursor: 0, clique: 0 };
+export const SEM_MARCAS: Marcas = { estado: 0, cursor: 0, clique: 0, fim: 0 };
 
 type Estado = (Mensagem & { tipo: "estado" }) | null;
 type Ponto = { x: number; y: number; t: number } | null;
+type Fim = { id: string; t: number } | null;
+
+/**
+ * Estado mais velho que isto significa que o apresentador sumiu: o batimento
+ * republica de tres em tres segundos, entao nada fresco nao existe enquanto
+ * alguem esta no ar de verdade.
+ *
+ * Vale como corte de entrega, e nao so como ritmo de leitura. As chaves duram
+ * duas horas, e quem abria o app nesse intervalo recebia o ultimo estado
+ * gravado e era convidado a acompanhar uma apresentacao encerrada havia muito
+ * tempo.
+ */
+const FRESCOR = 15_000;
 
 // duas horas: uma apresentação acaba muito antes, e as chaves se limpam sozinhas
 const VALIDADE = 60 * 60 * 2;
@@ -42,7 +55,12 @@ function cliente() {
 
 function chaves(sala: string) {
   const base = `lab:transmissao:${sala}`;
-  return { estado: `${base}:estado`, cursor: `${base}:cursor`, clique: `${base}:clique` };
+  return {
+    estado: `${base}:estado`,
+    cursor: `${base}:cursor`,
+    clique: `${base}:clique`,
+    fim: `${base}:fim`,
+  };
 }
 
 export type Leitura = {
@@ -59,12 +77,15 @@ export async function ler(sala: string, desde: Marcas): Promise<Leitura> {
   let estado: Estado = null;
   let cursor: Ponto = null;
   let clique: Ponto = null;
+  let fim: Fim = null;
 
   try {
-    [estado, cursor, clique] = await cliente().mget<[Estado, Ponto, Ponto]>(
+    // quatro chaves num MGET continua sendo um comando so
+    [estado, cursor, clique, fim] = await cliente().mget<[Estado, Ponto, Ponto, Fim]>(
       k.estado,
       k.cursor,
       k.clique,
+      k.fim,
     );
   } catch {
     // Redis fora do ar não derruba a página de quem assiste; ela só para de
@@ -75,7 +96,16 @@ export async function ler(sala: string, desde: Marcas): Promise<Leitura> {
   const mensagens: Mensagem[] = [];
   const marcas: Marcas = { ...desde };
 
-  if (estado && estado.estado.em > desde.estado) {
+  // O fim vai primeiro: quem recebe os dois na mesma leitura precisa cair fora
+  // do ar, e nao voltar por causa de um estado que ficou para tras.
+  if (fim && fim.t > desde.fim) {
+    mensagens.push({ tipo: "fim", apresentadorId: fim.id, em: fim.t });
+    marcas.fim = fim.t;
+  }
+
+  const fresco = Boolean(estado && Date.now() - estado.estado.em < FRESCOR);
+
+  if (estado && fresco && estado.estado.em > desde.estado) {
     mensagens.push(estado);
     marcas.estado = estado.estado.em;
   }
@@ -92,7 +122,7 @@ export async function ler(sala: string, desde: Marcas): Promise<Leitura> {
 
   // "ativo" é o que decide o ritmo da próxima leitura: sem transmissão no ar,
   // não faz sentido consultar quatro vezes por segundo
-  const ativo = Boolean(estado && Date.now() - estado.estado.em < 15_000);
+  const ativo = fresco;
 
   return { mensagens, marcas, ativo };
 }
@@ -118,6 +148,14 @@ export async function gravar(sala: string, mensagem: Mensagem) {
   }
 
   if (mensagem.tipo === "fim") {
+    // A marca fica: sem ela o encerramento se perde para quem apresenta de
+    // outra maquina. Ele nao le nada, so publica, e em tres segundos o
+    // batimento dele recriava a chave de estado que acabou de ser apagada.
     await cliente().del(k.estado, k.cursor, k.clique);
+    // `mensagem.em` e nao `agora`: quem compara essa marca e o navegador que
+    // apresenta, contra o instante em que ele entrou no ar. Os dois lados
+    // sendo relogio de navegador, a comparacao nao depende do relogio do
+    // servidor bater com o deles -- mesma premissa que `estado.em` ja usa.
+    await cliente().set(k.fim, { id: mensagem.apresentadorId, t: mensagem.em }, { ex: VALIDADE });
   }
 }

@@ -33,11 +33,27 @@ export type Estado = {
   em: number;
 };
 
+/**
+ * Encerramento dirigido a qualquer apresentação, e não a uma em particular.
+ *
+ * Quem está no /admin de outra máquina não sabe o id de quem está no ar, e é
+ * justamente esse o caso em que encerrar importa: a apresentação ficou aberta
+ * num computador ao qual ninguém tem acesso agora.
+ */
+export const TODOS = "*";
+
 export type Mensagem =
   | { tipo: "estado"; estado: Estado }
   | { tipo: "cursor"; x: number; y: number }
   | { tipo: "clique"; x: number; y: number }
-  | { tipo: "fim"; apresentadorId: string };
+  /**
+   * `em` é o que separa um encerramento de verdade de um eco antigo: a marca
+   * de fim fica guardada no servidor, então quem começa a apresentar depois
+   * dela a recebe ao conectar. Comparando com o instante em que a apresentação
+   * começou, uma marca velha é ignorada em vez de derrubar quem acabou de
+   * entrar no ar.
+   */
+  | { tipo: "fim"; apresentadorId: string; em: number };
 
 export type Canal = {
   nome: string;

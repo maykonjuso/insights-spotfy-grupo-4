@@ -39,7 +39,7 @@ async function reduzirFoto(arquivo: File): Promise<string> {
 }
 
 export function PainelAdmin() {
-  const { iniciar, encerrar, transmitindo, transmitir, apresentador } = useApresentacao();
+  const { iniciar, encerrarTudo, transmitindo, transmitir, apresentador } = useApresentacao();
   const inputFoto = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -57,6 +57,15 @@ export function PainelAdmin() {
   const [servidor, setServidor] = useState<"upstash" | "memoria">("memoria");
   const [alvo, setAlvo] = useState<"app" | "landing">("landing");
   const [secao, setSecao] = useState(SECOES[0].id);
+  const [encerrou, setEncerrou] = useState(false);
+
+  const encerrarTodas = useCallback(() => {
+    if (typeof window !== "undefined" && !window.confirm("Encerrar todas as apresentações ativas?")) {
+      return;
+    }
+    encerrarTudo();
+    setEncerrou(true);
+  }, [encerrarTudo]);
 
   useEffect(() => {
     setMotor(motorAtual());
@@ -180,6 +189,19 @@ export function PainelAdmin() {
             Começar apresentação
           </button>
 
+          {/* Fora do ar aqui não quer dizer fora do ar em lugar nenhum: a
+              apresentação pode ter ficado aberta em outro computador, e este
+              botão é o único jeito de alcançá-la sem voltar até lá. */}
+          <button type="button" className="admin-parar is-discreto" onClick={encerrarTodas}>
+            Encerrar apresentações em outros aparelhos
+          </button>
+
+          {encerrou ? (
+            <p className="aviso" role="status">
+              Encerramento enviado. Quem estava no ar sai em alguns segundos.
+            </p>
+          ) : null}
+
           <Link href="/" className="admin-voltar">
             Voltar para o app
           </Link>
@@ -273,14 +295,7 @@ export function PainelAdmin() {
           <Link href={alvo === "landing" ? "/projeto" : "/"} className="btn-secundario">
             Abrir o que estou apresentando
           </Link>
-          <button
-            type="button"
-            className="admin-parar"
-            onClick={() => {
-              if (typeof window !== "undefined" && !window.confirm("Encerrar todas as apresentações ativas?")) return;
-              encerrar();
-            }}
-          >
+          <button type="button" className="admin-parar" onClick={encerrarTodas}>
             Encerrar todas as apresentações
           </button>
         </div>

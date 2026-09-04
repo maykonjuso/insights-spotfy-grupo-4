@@ -17,6 +17,7 @@ import {
   intervaloDoCursor,
   motorAtual,
   motorDoServidor,
+  TODOS,
   type Apresentador,
   type Canal,
   type Estado,
@@ -43,6 +44,8 @@ type Contexto = {
   transmitir: (posicao: Posicao) => void;
   iniciar: (apresentador: Apresentador) => void;
   encerrar: () => void;
+  /** derruba qualquer apresentação no ar, inclusive a de outra máquina */
+  encerrarTudo: () => void;
   transmitindo: boolean;
   apresentador: Apresentador | null;
   /** estado de interface recebido de quem apresenta */
@@ -97,6 +100,8 @@ export function useEstadoEspelhado<T>(chave: string, inicial: T): [T, (valor: T)
 // Sem isto, abrir o app numa segunda aba criava um provedor novo que se achava
 // espectador, e a apresentação morria assim que o apresentador saía do /admin.
 const CHAVE = "popularity-lab:apresentador";
+/** instante em que esta apresentação começou, para datar os encerramentos */
+const CHAVE_INICIO = "popularity-lab:apresentador:em";
 
 function lerApresentador(): Apresentador | null {
   if (typeof window === "undefined") return null;
@@ -105,6 +110,15 @@ function lerApresentador(): Apresentador | null {
     return cru ? (JSON.parse(cru) as Apresentador) : null;
   } catch {
     return null;
+  }
+}
+
+function lerInicio(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    return Number(window.localStorage.getItem(CHAVE_INICIO)) || 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -133,6 +147,16 @@ function paraFracao(x: number, y: number) {
 /** referência estável, para o contexto não mudar a cada render */
 const VAZIO: Record<string, unknown> = {};
 
+/**
+ * A sala de controle não entra na apresentação.
+ *
+ * Enquanto entrava, quem abria o /admin para encerrar uma apresentação de outra
+ * máquina era convidado, aceito sozinho depois de cinco segundos, levado para a
+ * rota de quem apresentava e ainda travado pela camada que impede o toque. O
+ * botão de encerrar existia e era impossível de alcançar.
+ */
+const ROTA_DO_PAINEL = "/admin";
+
 const SEGUNDOS_PARA_ACEITAR = 5;
 /** um estado sem sinal por mais que isso significa que a apresentação acabou */
 const SILENCIO_ATE_ENCERRAR = 20_000;
@@ -141,6 +165,10 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const canal = useRef<Canal | null>(null);
   const router = useRouter();
   const rotaAtual = usePathname();
+
+  const noPainel = rotaAtual === ROTA_DO_PAINEL;
+  // lido de dentro do ouvinte do canal, que não remonta a cada troca de rota
+  const noPainelRef = useRef(false);
 
   const [convite, setConvite] = useState<Apresentador | null>(null);
   const conviteRef = useRef(false);
@@ -152,6 +180,8 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const [cliques, setCliques] = useState<{ id: number; x: number; y: number }[]>([]);
 
   const euApresento = useRef<Apresentador | null>(null);
+  /** desde quando estou no ar; encerramento anterior a isso é eco velho */
+  const noArDesde = useRef(0);
   const ultimoSinal = useRef(0);
   const seguindoRef = useRef(false);
   /** última posição publicada, repetida pelo batimento */
@@ -165,6 +195,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     const salvo = lerApresentador();
     if (!salvo) return;
     euApresento.current = salvo;
+    noArDesde.current = lerInicio();
     setApresentador(salvo);
     setTransmitindo(true);
   }, []);
@@ -197,18 +228,42 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const encerrar = useCallback(() => {
-    const eu = euApresento.current;
-    if (eu) canal.current?.enviar({ tipo: "fim", apresentadorId: eu.id });
+  /** larga o papel de apresentador nesta aba, sem avisar ninguém */
+  const pararLocal = useCallback(() => {
     euApresento.current = null;
+    noArDesde.current = 0;
     setApresentador(null);
     setTransmitindo(false);
+    ultimaPosicao.current = null;
+    ui.current = {};
     try {
       window.localStorage.removeItem(CHAVE);
+      window.localStorage.removeItem(CHAVE_INICIO);
     } catch {
       // navegador sem storage: a apresentação só não sobrevive à troca de aba
     }
   }, []);
+
+  const encerrar = useCallback(() => {
+    const eu = euApresento.current;
+    if (eu) canal.current?.enviar({ tipo: "fim", apresentadorId: eu.id, em: Date.now() });
+    pararLocal();
+  }, [pararLocal]);
+
+  /**
+   * Encerra qualquer apresentação, e não só a desta aba.
+   *
+   * É o que o /admin de uma máquina precisa para derrubar a apresentação que
+   * ficou aberta em outra: sem isto, o único jeito era voltar ao computador que
+   * começou, porque quem publica ignorava as mensagens que chegavam.
+   */
+  const encerrarTudo = useCallback(() => {
+    canal.current?.enviar({ tipo: "fim", apresentadorId: TODOS, em: Date.now() });
+    pararLocal();
+    setSeguindo(null);
+    setConvite(null);
+    setCursor(null);
+  }, [pararLocal]);
 
   const sair = useCallback(() => {
     setSeguindo((atual) => {
@@ -222,18 +277,35 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   // ---- recepção
   useEffect(() => {
     const inscricao = canal.current?.aoReceber((mensagem: Mensagem) => {
-      // quem transmite não reage às próprias mensagens
-      if (euApresento.current) return;
-
+      // O fim vem antes da checagem de quem apresenta, e é o único que vem.
+      //
+      // Quem estava no ar ignorava tudo que chegava, então nunca ficava sabendo
+      // que tinha sido encerrado de fora: apagar o estado no servidor não
+      // adiantava, porque o batimento dele reescrevia a chave três segundos
+      // depois e a apresentação ressuscitava sozinha.
       if (mensagem.tipo === "fim") {
+        const eu = euApresento.current;
+
+        if (eu) {
+          const paraMim = mensagem.apresentadorId === TODOS || mensagem.apresentadorId === eu.id;
+          // marca anterior ao meu início é eco guardado no servidor, de uma
+          // apresentação que já tinha acabado antes desta começar
+          if (paraMim && mensagem.em > noArDesde.current) pararLocal();
+          return;
+        }
+
         setSeguindo(null);
         setConvite(null);
         setCursor(null);
         return;
       }
 
+      // quem transmite não reage às próprias mensagens
+      if (euApresento.current) return;
+
       if (mensagem.tipo === "estado") {
         ultimoSinal.current = Date.now();
+        if (noPainelRef.current) return;
         setSeguindo((atual) => (atual ? mensagem.estado : atual));
         // Já seguindo, ou já recusei: nada de convidar de novo. Sem esta
         // checagem o convite voltava a cada estado recebido, ou seja de três em
@@ -261,7 +333,17 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     });
 
     return inscricao;
-  }, [recusados, canalPronto]);
+  }, [recusados, canalPronto, pararLocal]);
+
+  useEffect(() => {
+    noPainelRef.current = noPainel;
+    // chegar ao painel já acompanhando alguém desfaz o acompanhamento: é a
+    // única tela em que se está para comandar, não para assistir
+    if (!noPainel) return;
+    setSeguindo(null);
+    setConvite(null);
+    setCursor(null);
+  }, [noPainel]);
 
   useEffect(() => {
     seguindoRef.current = seguindo !== null;
@@ -308,7 +390,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const trocouSecaoEm = useRef(0);
 
   useEffect(() => {
-    if (!seguindo) return;
+    if (!seguindo || noPainel) return;
 
     if (seguindo.rota && seguindo.rota !== rotaAtual) router.push(seguindo.rota);
 
@@ -336,7 +418,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       // copiar o scrollY cru pararia no meio de outro parágrafo
       window.scrollTo({ top: seguindo.rolagem * alturaRolavel, behavior: "smooth" });
     }
-  }, [seguindo, rotaAtual, router]);
+  }, [seguindo, rotaAtual, router, noPainel]);
 
   // Marca no body o que está flutuando na tela, para o CSS empilhar sem que
   // uma camada cubra a outra: a faixa de quem acompanha ficava exatamente onde
@@ -450,13 +532,16 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   }, [transmitindo, transmitir]);
 
   const iniciar = useCallback((novo: Apresentador) => {
+    const agora = Date.now();
     euApresento.current = novo;
+    noArDesde.current = agora;
     setApresentador(novo);
     setTransmitindo(true);
     setSeguindo(null);
     setConvite(null);
     try {
       window.localStorage.setItem(CHAVE, JSON.stringify(novo));
+      window.localStorage.setItem(CHAVE_INICIO, String(agora));
     } catch {
       // sem storage a apresentação vale só nesta aba, e isso é aceitável
     }
@@ -499,12 +584,23 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       transmitir,
       iniciar,
       encerrar,
+      encerrarTudo,
       transmitindo,
       apresentador,
       espelho,
       publicarUi,
     }),
-    [seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador, espelho, publicarUi],
+    [
+      seguindo,
+      transmitir,
+      iniciar,
+      encerrar,
+      encerrarTudo,
+      transmitindo,
+      apresentador,
+      espelho,
+      publicarUi,
+    ],
   );
 
   return (

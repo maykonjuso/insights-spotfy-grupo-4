@@ -3925,6 +3925,21 @@ p {
   font-weight: 700;
 }
 
+/* Fora do ar, encerrar é uma saída de emergência: alcançável, mas sem competir
+   com "Começar apresentação", que é o que se vem fazer nesta tela. */
+.admin-parar.is-discreto {
+  min-height: 38px;
+  color: var(--txt-3);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-parar.is-discreto:hover {
+  color: var(--bad);
+}
+
 /* ==========================================================================
    Apresentação: cor da tela, ícones animados e o brilho da IA
    ========================================================================== */
