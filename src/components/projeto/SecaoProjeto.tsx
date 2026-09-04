@@ -63,9 +63,12 @@ export function SecaoProjeto({ secao, total, onVisivel }: SecaoProjetoProps) {
       <IconeSecao tipo={secao.icone} />
 
       <h2 id={`${secao.id}-titulo`} className="secao-titulo">
+        {/* o espaço fica FORA do span: dentro de um inline-block ele é aparado
+            na borda, e as palavras saíam grudadas */}
         {secao.titulo.split(" ").map((palavra, indice) => (
           <span key={`${palavra}-${indice}`} style={{ "--p": indice } as CSSProperties}>
-            {palavra}{" "}
+            {palavra}
+            {indice < secao.titulo.split(" ").length - 1 ? "\u00a0" : ""}
           </span>
         ))}
       </h2>

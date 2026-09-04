@@ -39,10 +39,6 @@ export function PaginaProjeto() {
   const tom = SECOES[indice]?.tom ?? "#1ed760";
   const progresso = ((indice + 1) / TOTAL_SECOES) * 100;
 
-  function irPara(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   return (
     <main className="projeto" style={{ "--tom": tom } as React.CSSProperties}>
       {/* A cor da tela acompanha a seção. `background-color` transiciona
@@ -71,21 +67,6 @@ export function PaginaProjeto() {
         </Link>
         <span className="projeto-marca">Como isso foi feito</span>
       </header>
-
-      <nav className="projeto-indice" aria-label="Seções">
-        {SECOES.map((secao) => (
-          <button
-            type="button"
-            key={secao.id}
-            className={secao.id === atual ? "is-atual" : ""}
-            onClick={() => irPara(secao.id)}
-            aria-current={secao.id === atual ? "true" : undefined}
-            aria-label={`Ir para ${secao.titulo}`}
-          >
-            <span>{secao.etiqueta}</span>
-          </button>
-        ))}
-      </nav>
 
       <div className="projeto-corpo">
         {SECOES.map((secao) => (
