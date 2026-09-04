@@ -71,7 +71,15 @@ export function useEstadoEspelhado<T>(chave: string, inicial: T): [T, (valor: T)
   const { transmitindo, seguindo, espelho, publicarUi } = useApresentacao();
   const [local, setLocal] = useState<T>(inicial);
 
-  const recebido = espelho[chave] as T | undefined;
+  // mesma razão do `espelho`: sem isto, cada batimento devolveria um objeto
+  // novo e quem depende da identidade dele reiniciaria sozinho
+  const bruto = espelho[chave];
+  const assinatura = bruto === undefined ? "" : JSON.stringify(bruto);
+  const recebido = useMemo<T | undefined>(
+    () => (assinatura ? (JSON.parse(assinatura) as T) : undefined),
+    [assinatura],
+  );
+
   const valor = seguindo && recebido !== undefined ? recebido : local;
 
   const definir = useCallback(
@@ -350,6 +358,18 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     };
   }, [seguindo]);
 
+  // O batimento reenvia o mesmo estado de três em três segundos, e cada
+  // reenvio criava objetos novos. Todo componente espelhado enxergava uma
+  // mudança que não existia, e o que dependia da identidade do objeto se
+  // reiniciava: a nota sumia e voltava a contar a cada três segundos. Amarrar
+  // pelo conteúdo, e não pela referência, é o que faz a tela ficar parada
+  // quando nada mudou de verdade.
+  const assinaturaUi = seguindo?.ui ? JSON.stringify(seguindo.ui) : "";
+  const espelho = useMemo<Record<string, unknown>>(
+    () => (assinaturaUi ? (JSON.parse(assinaturaUi) as Record<string, unknown>) : VAZIO),
+    [assinaturaUi],
+  );
+
   // ---- envio
   const transmitir = useCallback((posicao: Posicao) => {
     const eu = euApresento.current;
@@ -468,10 +488,10 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       encerrar,
       transmitindo,
       apresentador,
-      espelho: seguindo?.ui ?? VAZIO,
+      espelho,
       publicarUi,
     }),
-    [seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador, publicarUi],
+    [seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador, espelho, publicarUi],
   );
 
   return (

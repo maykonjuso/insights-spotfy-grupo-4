@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Secao } from "@/lib/projeto-conteudo";
 import { Revelar } from "../ui/Revelar";
+import { CenaSecao } from "./CenaSecao";
 import { IconeSecao } from "./IconeSecao";
 import { Minijogo } from "./Minijogo";
 
@@ -49,6 +50,8 @@ export function SecaoProjeto({ secao, total, onVisivel }: SecaoProjetoProps) {
       style={{ "--tom": secao.tom } as CSSProperties}
       aria-labelledby={`${secao.id}-titulo`}
     >
+      <CenaSecao tipo={secao.icone} />
+
       <div className="secao-topo">
         <span className="secao-etiqueta">{secao.etiqueta}</span>
         <span className="secao-contador">
@@ -60,7 +63,11 @@ export function SecaoProjeto({ secao, total, onVisivel }: SecaoProjetoProps) {
       <IconeSecao tipo={secao.icone} />
 
       <h2 id={`${secao.id}-titulo`} className="secao-titulo">
-        {secao.titulo}
+        {secao.titulo.split(" ").map((palavra, indice) => (
+          <span key={`${palavra}-${indice}`} style={{ "--p": indice } as CSSProperties}>
+            {palavra}{" "}
+          </span>
+        ))}
       </h2>
       <p className="secao-linha">{secao.linha}</p>
 

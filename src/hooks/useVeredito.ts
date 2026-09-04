@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useEstadoEspelhado } from "@/components/apresentacao/Apresentacao";
+import { useApresentacao, useEstadoEspelhado } from "@/components/apresentacao/Apresentacao";
 import { GENEROS_DESTAQUE } from "@/lib/model-bridge";
 import type { TrackFeatures } from "@/lib/model/types";
 
@@ -38,9 +38,16 @@ export function useVeredito(base: TrackFeatures, generoInicial: string) {
   const [calculando, setCalculando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [explicacao, setExplicacao] = useState<string | null>(null);
-  const [motivoSemTexto, setMotivoSemTexto] = useState<string | null>(null);
-  const [explicando, setExplicando] = useState(false);
+  // O texto da IA também é espelhado. Sem isso cada pessoa acompanhando
+  // chamaria o modelo por conta, o que gasta vinte vezes mais e ainda pode
+  // devolver vinte redações diferentes para a mesma tela.
+  const { seguindo } = useApresentacao();
+  const [explicacao, setExplicacao] = useEstadoEspelhado<string | null>("veredito:explicacao", null);
+  const [motivoSemTexto, setMotivoSemTexto] = useEstadoEspelhado<string | null>(
+    "veredito:motivo",
+    null,
+  );
+  const [explicando, setExplicando] = useEstadoEspelhado("veredito:escrevendo", false);
   const [explicacaoVelha, setExplicacaoVelha] = useState(false);
 
   // trocar de música reinicia a leitura sem remontar a tela
@@ -152,10 +159,11 @@ export function useVeredito(base: TrackFeatures, generoInicial: string) {
   }, [corrida, genero]);
 
   useEffect(() => {
-    if (!exibicao || jaExplicou.current) return;
+    // quem acompanha recebe o texto pronto; pedir de novo seria desperdício
+    if (seguindo || !exibicao || jaExplicou.current) return;
     jaExplicou.current = true;
     void explicar(features, genero);
-  }, [exibicao, features, genero, explicar]);
+  }, [seguindo, exibicao, features, genero, explicar]);
 
   return {
     genero,

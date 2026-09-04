@@ -7,6 +7,12 @@
       "skillPath": "SKILL.md",
       "computedHash": "8ef2407bb66c759c110a55102e26646795fdcf67e6d8a49f035ee2d25afcd91b"
     },
+    "cinematic-scroll-storytelling": {
+      "source": "mengto/skills",
+      "sourceType": "github",
+      "skillPath": "agent-skills/web-design/cinematic-scroll-storytelling/SKILL.md",
+      "computedHash": "e5e835b5c3eb87e2f539f54872d00d8d2f540d8c250e64b52edbf89d1f6cfb2d"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
