@@ -161,6 +161,15 @@ converte o que o navegador consegue medir no vetor exato que o modelo espera
 (`artifacts/feature_names.json`) e traduz os 10 estilos do GTZAN para os 107 que
 o modelo conhece. Nenhum áudio sai do aparelho: só as 11 medidas vão ao servidor.
 
+**Os estilos oferecidos são os que o app identifica sozinho.** Quem reconhece o
+estilo é o classificador GTZAN, que só conhece dez rótulos norte-americanos (a
+Essentia mede ritmo, tom, dançabilidade e loudness, não gênero). Buscar
+"sertanejo" e receber "country" na leitura de ouvido parecia contradição, então
+`GENEROS_RECONHECIDOS` virou fonte única: os mesmos dez alimentam os chips de
+busca, a corrida de estilos e as sugestões da análise. Os outros 97 do modelo
+continuam a um toque na folha de estilos, num grupo separado que avisa que ali a
+escolha é manual e a leitura de ouvido pode apontar um vizinho parecido.
+
 Na tela de resultado dá para trocar o estilo (folha inferior com os 107),
 simular outra versão da faixa com os sliders, e ver a mesma música pontuada em
 doze estilos de uma vez. Cada gesto refaz a conta em cerca de 10 ms.

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 type TopBarProps = {
   titulo: string;
   onVoltar?: () => void;
@@ -7,8 +9,29 @@ type TopBarProps = {
 };
 
 export function TopBar({ titulo, onVoltar, rotuloVoltar = "Voltar" }: TopBarProps) {
+  const barra = useRef<HTMLElement>(null);
+
+  // A altura vai para uma variavel CSS medida de verdade, e nao somada na mao.
+  // O resumo fixo da nota se ancora nela; um pixel de diferenca no calculo
+  // (fonte maior, recorte da tela, zoom) fazia a borda de cima do resumo
+  // desaparecer por baixo desta barra.
+  useEffect(() => {
+    const alvo = barra.current;
+    if (!alvo) return;
+
+    const medir = () =>
+      document.documentElement.style.setProperty("--alt-topbar", `${alvo.offsetHeight}px`);
+
+    medir();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(medir);
+    observador.observe(alvo);
+    return () => observador.disconnect();
+  }, []);
+
   return (
-    <header className="topbar">
+    <header className="topbar" ref={barra}>
       {onVoltar ? (
         <button type="button" className="icone-btn" onClick={onVoltar} aria-label={rotuloVoltar}>
           <svg viewBox="0 0 24 24" aria-hidden="true">

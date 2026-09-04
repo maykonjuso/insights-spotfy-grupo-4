@@ -38,6 +38,10 @@
 
   --lado: max(18px, env(safe-area-inset-left));
   --lado-dir: max(18px, env(safe-area-inset-right));
+
+  /* Chute inicial ate a TopBar se medir e sobrescrever esta variavel no
+     primeiro quadro. O resumo fixo da nota se ancora nela. */
+  --alt-topbar: calc(max(8px, env(safe-area-inset-top)) + 58px);
 }
 
 * {
@@ -312,8 +316,8 @@ p {
   grid-template-columns: 52px minmax(0, 1fr) 24px;
   gap: 14px;
   align-items: center;
-  min-height: 84px;
-  padding: 16px;
+  min-height: 82px;
+  padding: 15px 16px;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -354,8 +358,22 @@ p {
 }
 
 .opcao-texto small {
+  overflow: hidden;
   color: var(--txt-2);
   font-size: 13.5px;
+  text-overflow: ellipsis;
+  /* uma linha so: com duas, o cartao cresce e os dois botoes ficam desiguais */
+  white-space: nowrap;
+}
+
+.opcao-icone.is-spotify {
+  background: var(--ac);
+  color: #000;
+}
+
+.opcao-icone.is-spotify svg {
+  width: 32px;
+  height: 32px;
 }
 
 .opcao-seta {
@@ -1303,6 +1321,211 @@ p {
   }
 }
 
+/* ---------------- resumo fixo da nota ---------------- */
+
+/* Faixa de dissolucao entre a barra do topo e o conteudo que rola. O degrade
+   comeca opaco na cor do fundo e termina transparente, entao o texto some
+   suavemente antes de passar por baixo da barra da nota, em vez de aparecer
+   nitido nas frestas das bordas arredondadas. */
+.resumo-veu {
+  position: fixed;
+  top: var(--alt-topbar);
+  left: 0;
+  right: 0;
+  z-index: 17;
+  height: 116px;
+  background: linear-gradient(
+    180deg,
+    var(--bg) 0%,
+    var(--bg) 34%,
+    rgba(8, 8, 10, 0.86) 62%,
+    rgba(8, 8, 10, 0) 100%
+  );
+  backdrop-filter: blur(7px);
+  /* a mascara corta o proprio blur junto com a cor; sem ela o desfoque
+     terminaria numa linha reta visivel no fim do degrade */
+  mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.28s var(--e);
+  pointer-events: none;
+}
+
+.resumo-veu.is-visivel {
+  opacity: 1;
+}
+
+/* Desce por baixo da barra do topo quando o cartao da nota sai da tela. E o que
+   permite arrastar os sliders da simulacao la embaixo e ver o numero reagir
+   sem ter que subir a pagina toda. */
+
+.resumo-fixo {
+  position: fixed;
+  top: calc(var(--alt-topbar) + 8px);
+  left: 50%;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  /* mesma coluna do conteudo: largura do app menos as duas margens laterais.
+     Antes tinha largura propria e ficava desalinhada com o resto da tela. */
+  width: calc(min(100%, 560px) - var(--lado) - var(--lado-dir));
+  padding: 9px 14px 9px 9px;
+  border: 1px solid var(--line-forte);
+  border-radius: 999px;
+  background: rgba(24, 24, 28, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+  opacity: 0;
+  transform: translateX(-50%) translateY(-14px) scale(0.97);
+  transition: opacity 0.24s var(--e), transform 0.28s var(--e);
+  pointer-events: none;
+}
+
+.resumo-fixo.is-visivel {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* Onde a View Transitions API nao existe, o numero ao menos entra grande e
+   encolhe: le como se o mostrador que saiu da tela tivesse virado este resumo.
+   Onde a API existe, quem anima e ela, e esta regra sairia por cima. */
+@supports not (view-transition-name: none) {
+  .resumo-fixo.is-visivel .resumo-nota strong {
+    animation: nota-encolhe 460ms var(--e-mola) both;
+  }
+}
+
+@keyframes nota-encolhe {
+  from {
+    opacity: 0;
+    transform: scale(2.2) translateY(10px);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* capa e nome chegam depois do numero, para o olho pousar nele primeiro */
+.resumo-fixo.is-visivel img,
+.resumo-fixo.is-visivel .resumo-capa-vazia,
+.resumo-fixo.is-visivel .resumo-texto {
+  animation: entra 320ms var(--e) 120ms both;
+}
+
+.resumo-fixo img,
+.resumo-capa-vazia {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+
+.resumo-texto {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.resumo-texto strong {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumo-texto small {
+  overflow: hidden;
+  color: var(--txt-3);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumo-nota {
+  display: grid;
+  justify-items: end;
+  gap: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  text-align: right;
+}
+
+.resumo-nota strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  transition: color 0.3s ease;
+}
+
+.resumo-nota small {
+  color: var(--txt-3);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.resumo-fixo.is-high .resumo-nota strong {
+  color: var(--ac-2);
+}
+
+.resumo-fixo.is-mid .resumo-nota strong {
+  color: var(--warn);
+}
+
+.resumo-fixo.is-low .resumo-nota strong {
+  color: var(--bad);
+}
+
+.resumo-nota.is-ocupado strong {
+  opacity: 0.55;
+}
+
+/* ---------------- viagem do numero entre o mostrador e o topo ---------------- */
+
+/* Os dois numeros compartilham o mesmo view-transition-name, um de cada vez,
+   entao o navegador anima o percurso completo entre as duas posicoes e
+   tamanhos. Serve nos dois sentidos: descendo, o numero sobe para a barra;
+   subindo, ele volta para dentro do mostrador. */
+
+::view-transition-group(nota-score) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(nota-score),
+::view-transition-new(nota-score) {
+  /* so o numero muda de lugar; deixar o navegador tambem esmaecer os dois
+     deixaria o texto lavado no meio do caminho */
+  animation: none;
+  mix-blend-mode: normal;
+  height: 100%;
+}
+
+/* O padrao da API e um cross-fade da pagina inteira. Durante a rolagem isso
+   pisca a tela toda a cada cruzamento do limite, entao fica desligado: quem
+   viaja e so o numero. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(nota-score) {
+    animation-duration: 0.001ms;
+  }
+}
+
 /* ---------------- detalhe sob demanda ---------------- */
 
 .reveladores {
@@ -1473,6 +1696,38 @@ p {
   margin-bottom: 12px;
 }
 
+.grupo-titulo {
+  display: grid;
+  gap: 3px;
+  margin: 14px 0 6px;
+  padding: 0 14px;
+  color: var(--ac-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.grupo-titulo:first-child {
+  margin-top: 2px;
+}
+
+.grupo-titulo small {
+  color: var(--txt-3);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.nota-manual {
+  max-width: 34ch;
+  color: var(--txt-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 .lista-estilos {
   display: grid;
   gap: 2px;
@@ -1507,6 +1762,12 @@ p {
 }
 
 /* ---------------- mostrador da nota ---------------- */
+
+.mostrador-alvo {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+}
 
 .score-dial {
   position: relative;
@@ -1959,13 +2220,13 @@ p {
 .player {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
-  padding: 8px 14px 8px 8px;
+  padding: 10px 16px 10px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  transition: border-color 0.25s ease;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface), rgba(20, 20, 23, 0.55));
+  transition: border-color 0.25s ease, background 0.25s ease;
 }
 
 .player.is-tocando {
@@ -2015,37 +2276,84 @@ p {
   cursor: default;
 }
 
-/* trilha visivel + range invisivel por cima: o desenho fica fino do jeito que
-   se quer e o arraste, o teclado e o leitor de tela continuam sendo do input */
-.player-linha {
+/* A onda e o envelope real do audio (RMS por coluna), calculado na analise.
+   As colunas ja ouvidas ficam verdes; a que esta tocando balanca. */
+
+.player-onda {
   position: relative;
   display: grid;
   align-items: center;
   min-width: 0;
-  height: 44px;
+  height: 40px;
 }
 
-.player-trilha {
+.onda-colunas {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 34px;
+}
+
+.onda-colunas i {
+  flex: 1 1 0;
+  min-width: 2px;
+  min-height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  transform-origin: center;
+  transition: background 0.25s ease, transform 0.25s var(--e);
+}
+
+.onda-colunas i.is-ouvida {
+  background: var(--ac);
+}
+
+.onda-colunas i.is-agulha {
+  background: var(--ac-2);
+}
+
+/* so a agulha e as duas colunas seguintes se mexem: a onda inteira pulsando
+   viraria ruido visual e disputaria atencao com o numero da nota */
+.player.is-tocando .onda-colunas i.is-agulha {
+  animation: onda-viva 620ms ease-in-out infinite alternate;
+}
+
+.player.is-tocando .onda-colunas i.is-agulha + i {
+  animation: onda-viva 620ms ease-in-out 120ms infinite alternate;
+}
+
+.player.is-tocando .onda-colunas i.is-agulha + i + i {
+  animation: onda-viva 620ms ease-in-out 240ms infinite alternate;
+}
+
+@keyframes onda-viva {
+  to {
+    transform: scaleY(1.35);
+  }
+}
+
+.onda-simples {
   display: block;
-  height: 4px;
+  width: 100%;
+  height: 5px;
   border-radius: 999px;
   background: var(--surface-3);
   overflow: hidden;
 }
 
-.player-trilha i {
+.onda-simples i {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: 999px;
   background: var(--ac);
-  transition: width 0.18s linear;
+  transform-origin: left center;
+  transition: transform 0.18s linear;
 }
 
-.player.is-tocando .player-trilha i {
-  background: linear-gradient(90deg, var(--ac), var(--ac-2));
-}
-
-.player-linha input[type="range"] {
+.player-onda input[type="range"] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2055,27 +2363,40 @@ p {
   cursor: pointer;
 }
 
-.player-linha input[type="range"]:disabled {
+.player-onda input[type="range"]:disabled {
   cursor: default;
 }
 
-.player-linha input[type="range"]:focus-visible {
-  opacity: 1;
-  accent-color: var(--ac);
+.player-onda input[type="range"]:focus-visible {
+  outline: 2px solid var(--ac-2);
+  outline-offset: 4px;
+  border-radius: 8px;
 }
 
 .player-tempo {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  padding-left: 2px;
   color: var(--txt-3);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.25;
 }
 
-.player-tempo i {
-  color: var(--surface-3);
-  font-style: normal;
+.player-tempo strong {
+  color: var(--txt);
+  font-size: 13.5px;
+  font-weight: 700;
 }
+
+
+
+
+
+
+
+
 
 .player-bloco {
   display: grid;
@@ -2089,6 +2410,32 @@ p {
 }
 
 /* ---------------- telas maiores ---------------- */
+
+/* Na tela de resultado o assunto e explorar a leitura; recomecar e saida, nao
+   acao principal. Preso no rodape ele roubava espaco de leitura a viagem toda
+   e competia com o resumo fixo da nota. */
+.resultado .barra-acao {
+  position: static;
+  margin: 18px 0 0;
+  padding: 0;
+  background: none;
+}
+
+.resultado .barra-acao .btn-principal {
+  width: auto;
+  min-height: 50px;
+  margin: 0 auto;
+  padding: 0 26px;
+  border: 1px solid var(--line-forte);
+  background: var(--surface-2);
+  box-shadow: none;
+  color: var(--txt);
+  font-size: 15px;
+}
+
+.resultado .barra-acao .btn-principal:active {
+  background: var(--surface-3);
+}
 
 @media (min-width: 620px) {
   .app {

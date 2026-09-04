@@ -116,22 +116,33 @@ export const GTZAN_TO_MODEL: Record<string, string> = {
   rock: "rock",
 };
 
-// Sugestoes de comparacao: generos populares do catalogo que o GTZAN nao
-// alcanca, usados na corrida de generos para dar contraste a leitura.
-export const GENEROS_DESTAQUE = [
-  "pop",
-  "k-pop",
-  "hip-hop",
-  "rock",
-  "sertanejo",
-  "mpb",
-  "funk",
-  "pagode",
-  "edm",
-  "metal",
-  "chill",
-  "sad",
+// Fonte unica dos estilos que o app oferece por padrao: sao os dez que o
+// classificador identifica ouvindo o audio E que existem entre os 107 do
+// modelo. Manter as duas pontas iguais evita o descompasso que confundia:
+// buscar sertanejo e o app responder "country", porque sertanejo nao esta no
+// vocabulario de quem escuta. Os outros 97 continuam a um toque, na folha de
+// estilos, marcados como escolha manual.
+export const GENEROS_RECONHECIDOS: { valor: string; rotulo: string }[] = [
+  { valor: "pop", rotulo: "Pop" },
+  { valor: "rock", rotulo: "Rock" },
+  { valor: "hip-hop", rotulo: "Hip-hop" },
+  { valor: "metal", rotulo: "Metal" },
+  { valor: "jazz", rotulo: "Jazz" },
+  { valor: "blues", rotulo: "Blues" },
+  { valor: "country", rotulo: "Country" },
+  { valor: "reggae", rotulo: "Reggae" },
+  { valor: "disco", rotulo: "Disco" },
+  { valor: "classical", rotulo: "Clássico" },
 ];
+
+const VALORES_RECONHECIDOS = new Set(GENEROS_RECONHECIDOS.map((item) => item.valor));
+
+export function reconhecidoDeOuvido(genero: string) {
+  return VALORES_RECONHECIDOS.has(genero);
+}
+
+// A corrida compara sempre dentro do mesmo vocabulario da leitura de audio.
+export const GENEROS_DESTAQUE = GENEROS_RECONHECIDOS.map((item) => item.valor);
 
 export function modelGenreFor(gtzanGenre: string | undefined) {
   return (gtzanGenre && GTZAN_TO_MODEL[gtzanGenre]) || "pop";

@@ -99,14 +99,14 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
         {ESTILOS.map((item) => (
           <button
             type="button"
-            key={item}
-            className={`chip ${item === genero ? "is-ativo" : ""}`}
-            onClick={() => onGenero(item)}
+            key={item.valor}
+            className={`chip ${item.valor === genero ? "is-ativo" : ""}`}
+            onClick={() => onGenero(item.valor)}
             // tocar ja adianta a busca; se a pessoa so passar o dedo, nada se perde
-            onPointerEnter={() => prefetch(item)}
-            aria-pressed={item === genero}
+            onPointerEnter={() => prefetch(item.valor)}
+            aria-pressed={item.valor === genero}
           >
-            {item}
+            {item.rotulo}
           </button>
         ))}
       </div>

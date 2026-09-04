@@ -33,6 +33,8 @@ export type Musica = {
   duracaoMs: number;
   /** dados curtos da faixa, mostrados como uma linha discreta sob o nome */
   detalhes: string[];
+  /** envelope do audio em 56 colunas, 0..1, para desenhar a onda no player */
+  forma: number[];
   features: TrackFeatures;
   generoInicial: string;
   sugestoes: Sugestao[];
@@ -64,6 +66,39 @@ type Bruto = {
   monoSamples: Float32Array;
 };
 
+const COLUNAS_DA_ONDA = 56;
+
+// Onda de verdade, tirada do mesmo audio que o player toca: uma passada pelas
+// amostras ja decodificadas, RMS por coluna. Desenhar um padrao inventado
+// seria mais facil, mas passaria a impressao de estar mostrando a musica
+// quando nao estaria.
+function extrairForma(amostras: Float32Array) {
+  const porColuna = Math.max(1, Math.floor(amostras.length / COLUNAS_DA_ONDA));
+  const colunas: number[] = [];
+
+  for (let coluna = 0; coluna < COLUNAS_DA_ONDA; coluna += 1) {
+    const inicio = coluna * porColuna;
+    const fim = Math.min(amostras.length, inicio + porColuna);
+    // amostragem esparsa: a coluna nao muda de altura por olhar 1 a cada 16
+    const passo = Math.max(1, Math.floor((fim - inicio) / 900));
+
+    let soma = 0;
+    let conta = 0;
+    for (let i = inicio; i < fim; i += passo) {
+      soma += amostras[i] * amostras[i];
+      conta += 1;
+    }
+
+    colunas.push(conta > 0 ? Math.sqrt(soma / conta) : 0);
+  }
+
+  const maior = Math.max(...colunas);
+  if (!Number.isFinite(maior) || maior <= 0) return colunas.map(() => 0.12);
+
+  // raiz para nao achatar as partes calmas: sem isso, so o refrao aparece
+  return colunas.map((valor) => Math.max(0.08, Math.min(1, Math.sqrt(valor / maior))));
+}
+
 async function medir(dados: ArrayBuffer, avisar: (etapa: EtapaAnalise) => void): Promise<Bruto> {
   const { buffer, monoSamples } = await decodeAudioData(dados);
   avisar("ouvindo");
@@ -93,6 +128,7 @@ async function montar(
 
   return {
     descriptors,
+    forma: extrairForma(bruto.monoSamples),
     features,
     generoSugerido: modelGenreFor(escutados[0]?.genre),
     sugestoesDoSom: escutados.map((item) => ({

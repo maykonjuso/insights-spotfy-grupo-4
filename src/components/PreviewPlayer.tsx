@@ -7,6 +7,8 @@ type PreviewPlayerProps = {
   sourceId: string;
   url?: string | null;
   title: string;
+  /** envelope do áudio em colunas 0..1; sem ele o player cai numa barra simples */
+  forma?: number[];
 };
 
 function tempo(segundos: number) {
@@ -15,25 +17,50 @@ function tempo(segundos: number) {
   return `${minutos}:${String(Math.floor(segundos % 60)).padStart(2, "0")}`;
 }
 
-// Barra fina, para não competir com a capa e o nome da música logo acima.
-// O range continua ali por baixo, invisível mas inteiro: é ele que dá o
-// arraste com o dedo, o teclado e a leitura por leitor de tela.
-export function PreviewPlayer({ sourceId, url, title }: PreviewPlayerProps) {
+export function PreviewPlayer({ sourceId, url, title, forma }: PreviewPlayerProps) {
   const estado = usePlayerState();
   const atual = estado.sourceId === sourceId;
   const duracao = atual ? estado.duration : 0;
   const posicao = atual ? estado.position : 0;
-  const progresso = duracao > 0 ? (posicao / duracao) * 100 : 0;
+  const tocando = atual && estado.isPlaying;
+  const progresso = duracao > 0 ? posicao / duracao : 0;
+
+  const colunas = forma?.length ? forma : null;
+  // Coluna onde a agulha esta agora: so ela e as vizinhas se mexem. Fica em -1
+  // enquanto a faixa nao comecou, senao a coluna 0 acenderia parada e viraria
+  // um ponto verde solto na ponta esquerda.
+  const agulha =
+    colunas && atual && duracao > 0
+      ? Math.min(colunas.length - 1, Math.floor(progresso * colunas.length))
+      : -1;
 
   return (
-    <div className={`player ${atual && estado.isPlaying ? "is-tocando" : ""}`}>
+    <div className={`player ${tocando ? "is-tocando" : ""}`}>
       <PlayButton sourceId={sourceId} url={url} title={title} />
 
-      <div className="player-linha">
-        <span className="player-trilha" aria-hidden="true">
-          <i style={{ width: `${progresso}%` }} />
-        </span>
+      <div className="player-onda">
+        {colunas ? (
+          <span className="onda-colunas" aria-hidden="true">
+            {colunas.map((altura, indice) => {
+              // a coluna acende quando a agulha passa por ela
+              const passou = indice < agulha;
+              const classes = [passou ? "is-ouvida" : "", indice === agulha ? "is-agulha" : ""]
+                .filter(Boolean)
+                .join(" ");
 
+              return (
+                <i key={indice} className={classes} style={{ height: `${Math.round(altura * 100)}%` }} />
+              );
+            })}
+          </span>
+        ) : (
+          <span className="onda-simples" aria-hidden="true">
+            <i style={{ transform: `scaleX(${progresso})` }} />
+          </span>
+        )}
+
+        {/* o range fica invisível por cima: é ele que dá arraste, teclado e
+            leitura por leitor de tela, sem impor a aparência padrão */}
         <input
           type="range"
           min={0}
@@ -47,8 +74,7 @@ export function PreviewPlayer({ sourceId, url, title }: PreviewPlayerProps) {
       </div>
 
       <span className="player-tempo">
-        {tempo(posicao)}
-        <i aria-hidden="true">/</i>
+        <strong>{tempo(posicao)}</strong>
         {tempo(duracao)}
       </span>
     </div>

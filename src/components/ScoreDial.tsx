@@ -8,6 +8,9 @@ type ScoreDialProps = {
   legenda: string;
   detalhe?: string;
   ocupado?: boolean;
+  /** quando verdadeiro, este numero e a ponta da transicao compartilhada com
+   * o resumo fixo do topo; so um elemento pode usar o nome por vez */
+  ancorado?: boolean;
 };
 
 const RAIO = 78;
@@ -21,7 +24,7 @@ function tom(score: number) {
   return "low";
 }
 
-export function ScoreDial({ score, hdi, legenda, detalhe, ocupado }: ScoreDialProps) {
+export function ScoreDial({ score, hdi, legenda, detalhe, ocupado, ancorado }: ScoreDialProps) {
   const animado = useAnimatedNumber(score);
   const preenchido = ARCO * (Math.max(0, Math.min(100, animado)) / 100);
   const faixaInicio = hdi ? ARCO * (hdi[0] / 100) : 0;
@@ -69,7 +72,9 @@ export function ScoreDial({ score, hdi, legenda, detalhe, ocupado }: ScoreDialPr
       </svg>
 
       <div className="dial-centro">
-        <strong>{Math.round(animado)}</strong>
+        <strong style={ancorado ? { viewTransitionName: "nota-score" } : undefined}>
+          {Math.round(animado)}
+        </strong>
         <span>{legenda}</span>
         {hdi ? (
           <small>

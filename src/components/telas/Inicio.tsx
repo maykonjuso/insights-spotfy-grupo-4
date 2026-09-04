@@ -1,5 +1,7 @@
 "use client";
 
+import { siSpotify } from "simple-icons";
+
 type InicioProps = {
   onEnviar: () => void;
   onBuscar: () => void;
@@ -32,15 +34,15 @@ export function Inicio({ onEnviar, onBuscar }: InicioProps) {
 
       <div className="inicio-opcoes">
         <button type="button" className="opcao is-principal" onClick={onBuscar}>
-          <span className="opcao-icone" aria-hidden="true">
+          <span className="opcao-icone is-spotify" aria-hidden="true">
+            {/* marca oficial, vinda do pacote simple-icons */}
             <svg viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" strokeWidth="1.9" />
-              <path d="M16 16l4 4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              <path d={siSpotify.path} fill="currentColor" />
             </svg>
           </span>
           <span className="opcao-texto">
             <strong>Procurar no Spotify</strong>
-            <small>Pegue qualquer música e veja a nota dela</small>
+            <small>Qualquer música do catálogo</small>
           </span>
           <span className="opcao-seta" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -70,7 +72,7 @@ export function Inicio({ onEnviar, onBuscar }: InicioProps) {
           </span>
           <span className="opcao-texto">
             <strong>Enviar a minha música</strong>
-            <small>Um arquivo que está no seu aparelho</small>
+            <small>Um arquivo do seu aparelho</small>
           </span>
           <span className="opcao-seta" aria-hidden="true">
             <svg viewBox="0 0 24 24">

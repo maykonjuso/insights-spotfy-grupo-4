@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useVeredito } from "@/hooks/useVeredito";
 import type { Musica } from "@/lib/analisar";
+import { GENEROS_RECONHECIDOS, reconhecidoDeOuvido } from "@/lib/model-bridge";
 import { GenreRace } from "../GenreRace";
 import { PreviewPlayer } from "../PreviewPlayer";
 import { ScoreDial } from "../ScoreDial";
 import { SoundFeatureGrid } from "../SoundFeatureGrid";
 import { WhatIfPanel } from "../WhatIfPanel";
 import { PensandoIA } from "../ui/PensandoIA";
+import { ResumoFixo } from "../ui/ResumoFixo";
 import { Revelar } from "../ui/Revelar";
 import { Sheet } from "../ui/Sheet";
 
@@ -31,9 +34,64 @@ function frase(score: number, genero: string) {
 
 export function Resultado({ musica, onRecomecar }: ResultadoProps) {
   const veredito = useVeredito(musica.features, musica.generoInicial);
+  const mostradorRef = useRef<HTMLDivElement>(null);
+  const [notaNaTela, setNotaNaTela] = useState(true);
   const [folhaAberta, setFolhaAberta] = useState(false);
   const [catalogo, setCatalogo] = useState<string[]>([]);
   const [filtro, setFiltro] = useState("");
+
+  // Troca o estado dentro de uma transicao de elemento compartilhado: os dois
+  // numeros (o do mostrador e o do topo) carregam o mesmo view-transition-name,
+  // um de cada vez, entao o navegador anima a viagem de um ate o outro sozinho.
+  // Vale nos dois sentidos, descendo e subindo, sem calcular posicao na mao.
+  //
+  // flushSync porque a API precisa do DOM ja atualizado dentro do callback.
+  const emTransicao = useRef(false);
+
+  const trocarResumo = useCallback((valor: boolean) => {
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    };
+
+    const semSuporte = typeof doc.startViewTransition !== "function";
+    const querMenosMovimento =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // rolagem rapida cruza o limite varias vezes; enfileirar transicoes ai
+    // trava a pagina, entao a troca vira instantanea enquanto uma esta rodando
+    if (semSuporte || querMenosMovimento || emTransicao.current) {
+      setNotaNaTela(valor);
+      return;
+    }
+
+    emTransicao.current = true;
+    const transicao = doc.startViewTransition!(() => {
+      flushSync(() => setNotaNaTela(valor));
+    });
+    void transicao.finished.finally(() => {
+      emTransicao.current = false;
+    });
+  }, []);
+
+  // O gatilho e o mostrador, nao o cartao inteiro: o cartao ainda tem frase,
+  // escala e botao de estilo embaixo, entao esperar ele sumir fazia a barra
+  // chegar tarde, com o numero fora da tela ha muito tempo.
+  //
+  // O numero fica a 45% da altura do mostrador. Trocar visivel por "menos de
+  // metade aparecendo, ja descontando a barra do topo" faz a troca acontecer
+  // no momento em que o numero passa por baixo do cabecalho.
+  useEffect(() => {
+    const alvo = mostradorRef.current;
+    if (!alvo || typeof IntersectionObserver === "undefined") return;
+
+    const observador = new IntersectionObserver(
+      ([entrada]) => trocarResumo(entrada.intersectionRatio >= 0.5),
+      { rootMargin: "-70px 0px 0px 0px", threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+
+    observador.observe(alvo);
+    return () => observador.disconnect();
+  }, [veredito.pronto, trocarResumo]);
 
   useEffect(() => {
     fetch("/api/generos")
@@ -42,10 +100,17 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
       .catch(() => setCatalogo([]));
   }, []);
 
-  const filtrados = useMemo(() => {
+  // Dois grupos na folha: primeiro os dez que o app identifica sozinho, depois
+  // o resto do catalogo do modelo. Sem essa separacao, escolher "sertanejo" e
+  // ver o app dizer "country" na leitura de ouvido parecia contradicao.
+  const { doOuvido, doModelo } = useMemo(() => {
     const termo = filtro.trim().toLowerCase();
-    if (!termo) return catalogo;
-    return catalogo.filter((item) => item.includes(termo));
+    const passa = (item: string) => !termo || item.includes(termo);
+
+    return {
+      doOuvido: GENEROS_RECONHECIDOS.filter((item) => passa(item.valor) || passa(item.rotulo.toLowerCase())),
+      doModelo: catalogo.filter((item) => passa(item) && !reconhecidoDeOuvido(item)),
+    };
   }, [catalogo, filtro]);
 
   const melhor = veredito.corrida[0];
@@ -59,6 +124,17 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
 
   return (
     <section className="tela resultado">
+      <ResumoFixo
+        visivel={!notaNaTela && veredito.pronto}
+        titulo={musica.titulo}
+        capa={musica.capa}
+        genero={veredito.genero}
+        score={veredito.score}
+        legenda={faixaDeScore(veredito.score)}
+        calculando={veredito.calculando}
+        editado={mexeu}
+      />
+
       <header className="musica-topo">
         {musica.capa ? (
           <img src={musica.capa} alt="" className="musica-capa" />
@@ -95,7 +171,12 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
 
       {musica.audioUrl ? (
         <div className="player-bloco">
-          <PreviewPlayer sourceId={musica.id} url={musica.audioUrl} title={musica.titulo} />
+          <PreviewPlayer
+            sourceId={musica.id}
+            url={musica.audioUrl}
+            title={musica.titulo}
+            forma={musica.forma}
+          />
           {/* sem isto, a duracao de 3:09 na linha de dados briga com os 30s que
               o player toca, e parece defeito */}
           {musica.legendaAudio ? <small className="player-legenda">{musica.legendaAudio}</small> : null}
@@ -123,12 +204,15 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
       <div className="cartao-nota">
         {veredito.pronto ? (
           <>
-            <ScoreDial
-              score={veredito.score}
-              hdi={veredito.hdi}
-              legenda={faixaDeScore(veredito.score)}
-              ocupado={veredito.calculando}
-            />
+            <div className="mostrador-alvo" ref={mostradorRef}>
+              <ScoreDial
+                score={veredito.score}
+                hdi={veredito.hdi}
+                legenda={faixaDeScore(veredito.score)}
+                ocupado={veredito.calculando}
+                ancorado={notaNaTela}
+              />
+            </div>
 
             <p className="nota-frase">{frase(veredito.score, veredito.genero)}</p>
             <p className="nota-escala">
@@ -173,6 +257,13 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
               </button>
             ))}
           </div>
+        ) : null}
+
+        {!reconhecidoDeOuvido(veredito.genero) ? (
+          <p className="nota-manual">
+            Este estilo foi escolha sua. O app não consegue identificá-lo só de ouvir a música, então a
+            leitura do som ao lado pode apontar um vizinho parecido.
+          </p>
         ) : null}
 
         {mexeu ? <p className="nota-editada">Você mudou o som. Esta nota é da sua versão.</p> : null}
@@ -236,21 +327,52 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
           />
         </div>
 
-        <ul className="lista-estilos">
-          {filtrados.map((item) => (
-            <li key={item}>
-              <button
-                type="button"
-                className={item === veredito.genero ? "is-ativo" : ""}
-                onClick={() => escolherEstilo(item)}
-              >
-                {item}
-                {item === veredito.genero ? <span aria-hidden="true">✓</span> : null}
-              </button>
-            </li>
-          ))}
-          {filtrados.length === 0 ? <li className="aviso">Nenhum estilo com esse nome.</li> : null}
-        </ul>
+        {doOuvido.length > 0 ? (
+          <>
+            <p className="grupo-titulo">O app reconhece de ouvido</p>
+            <ul className="lista-estilos">
+              {doOuvido.map((item) => (
+                <li key={item.valor}>
+                  <button
+                    type="button"
+                    className={item.valor === veredito.genero ? "is-ativo" : ""}
+                    onClick={() => escolherEstilo(item.valor)}
+                  >
+                    {item.rotulo}
+                    {item.valor === veredito.genero ? <span aria-hidden="true">✓</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+
+        {doModelo.length > 0 ? (
+          <>
+            <p className="grupo-titulo">
+              Outros estilos do modelo
+              <small>A nota sai certinho, mas o estilo é escolha sua: o app não identifica estes ouvindo.</small>
+            </p>
+            <ul className="lista-estilos">
+              {doModelo.map((item) => (
+                <li key={item}>
+                  <button
+                    type="button"
+                    className={item === veredito.genero ? "is-ativo" : ""}
+                    onClick={() => escolherEstilo(item)}
+                  >
+                    {item}
+                    {item === veredito.genero ? <span aria-hidden="true">✓</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+
+        {doOuvido.length === 0 && doModelo.length === 0 ? (
+          <p className="aviso">Nenhum estilo com esse nome.</p>
+        ) : null}
       </Sheet>
     </section>
   );

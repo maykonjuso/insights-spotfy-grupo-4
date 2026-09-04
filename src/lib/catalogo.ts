@@ -1,5 +1,7 @@
 "use client";
 
+import { GENEROS_RECONHECIDOS } from "./model-bridge";
+
 // Cache de músicas por estilo, vivo enquanto a aba estiver aberta.
 // A tela de abertura já busca o primeiro estilo enquanto a animação roda, então
 // quem toca em "Procurar no Spotify" encontra a lista pronta, sem esqueleto.
@@ -14,20 +16,11 @@ export type Faixa = {
   album: { name: string; release_date?: string; images: { url: string }[] };
 };
 
-export const ESTILOS = [
-  "pop",
-  "sertanejo",
-  "funk",
-  "mpb",
-  "hip-hop",
-  "rock",
-  "k-pop",
-  "pagode",
-  "samba",
-  "eletronica",
-];
+// Os mesmos dez que o app reconhece ouvindo o audio, para que a busca e a
+// leitura falem a mesma lingua.
+export const ESTILOS = GENEROS_RECONHECIDOS;
 
-export const ESTILO_INICIAL = ESTILOS[0];
+export const ESTILO_INICIAL = ESTILOS[0].valor;
 
 type Entrada =
   | { estado: "carregando"; promessa: Promise<Faixa[]> }
