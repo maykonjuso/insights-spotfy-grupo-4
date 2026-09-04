@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
-import type { PosteriorSamples, PosteriorSummary } from './types';
+import type { PosteriorSamples, PosteriorSummary } from "./types";
 
 const ARTIFACTS = path.join(process.cwd(), 'artifacts');
 
