@@ -1,22 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { predict } from '@/lib/k11Model';
-import { generateExplanation } from '@/lib/llmExplanation';
+import { predict } from '@/lib/model/k11Model';
+import { generateExplanation } from '@/lib/model/llmExplanation';
+import { TrackFeaturesSchema } from '@/lib/model/schema';
 
 const RequestSchema = z.object({
-  track_features: z.object({
-    danceability: z.number().min(0).max(1),
-    energy: z.number().min(0).max(1),
-    loudness: z.number().min(-60).max(0),
-    speechiness: z.number().min(0).max(1),
-    acousticness: z.number().min(0).max(1),
-    instrumentalness: z.number().min(0).max(1),
-    liveness: z.number().min(0).max(1),
-    valence: z.number().min(0).max(1),
-    tempo: z.number().min(0).max(250),
-    explicit: z.number().int().min(0).max(1),
-    mode_bin: z.number().int().min(0).max(1),
-  }),
+  track_features: TrackFeaturesSchema,
   genero: z.string().min(1).max(50),
 });
 
@@ -51,7 +40,7 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     if (msg.includes('Unknown genre')) {
-      const { genero_cats } = await import('@/lib/artifacts');
+      const { genero_cats } = await import('@/lib/model/artifacts');
       return NextResponse.json(
         { error: msg, valid_generos: genero_cats },
         { status: 400 },

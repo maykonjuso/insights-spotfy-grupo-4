@@ -3,22 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "essentia:copy": "node scripts/ts/copiar_essentia_wasm.mjs",
+    "predev": "npm run essentia:copy",
     "dev": "next dev",
+    "prebuild": "npm run essentia:copy",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "features:gtzan": "node --experimental-strip-types scripts/ts/extrair_gtzan.mts"
   },
   "dependencies": {
+    "essentia.js": "^0.1.3",
     "next": "^15.0.0",
+    "openai": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "openai": "^4.0.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.0.0"
   }
 }

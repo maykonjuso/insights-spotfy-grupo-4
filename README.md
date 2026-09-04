@@ -102,16 +102,49 @@ superior direito).
 
 ## Aplicação Next (`src/`)
 
-Interface mobile-first que consome a Spotify Web API e roda toda a análise de áudio
-dentro do navegador.
+App mobile-first que fecha o circuito do projeto: o navegador **ouve** o arquivo de áudio,
+mede as features, e o servidor **pontua** essa faixa no modelo bayesiano k=11 treinado
+sobre as 89.740 músicas do dataset limpo.
 
 ```bash
 npm install
-cp .env.local.example .env.local   # preencher SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET
+cp .env.local.example .env.local   # todas as chaves sao opcionais (ver o arquivo)
 npm run dev                        # http://localhost:3000
 ```
 
-O que a tela faz:
+### O caminho principal: "sua música tem cara de hit?"
+
+```
+arquivo de audio
+   -> decodifica e reamostra para 22,05 kHz mono   (WebAudio, no aparelho)
+   -> Essentia WASM + DSP proprio                  (BPM, tom, energia, espectro)
+   -> classificador GTZAN                          (genero provavel)
+   -> src/lib/model-bridge.ts                      (11 features do modelo)
+   -> POST /api/predict                            (modelo k=11, 1.000 amostras)
+   -> score 0-100 + intervalo de credibilidade 94%
+```
+
+`src/lib/model-bridge.ts` é a peça que liga as duas metades: converte o que o navegador
+consegue medir no vetor exato que o modelo espera (`artifacts/feature_names.json`) e
+traduz os 10 gêneros do GTZAN para os 107 gêneros que o modelo conhece. Nenhum áudio sai
+do aparelho — só as 11 medidas resultantes vão ao servidor.
+
+Na tela de resultado dá para:
+
+- **trocar o gênero da análise** (chips do classificador ou os 107 do modelo) e ver o score
+  recalcular — os coeficientes são por gênero, então a mesma faixa vale scores bem
+  diferentes dependendo de onde é lançada;
+- **simular outra versão da faixa** com os sliders ("e se o andamento fosse 130?"), que
+  batem em `/api/predict` a cada arrasto (≈10 ms por consulta);
+- **ver a corrida de gêneros**: a mesma música pontuada em doze gêneros de uma vez.
+
+Toda a animação é CSS em `transform`/`opacity`, sem biblioteca de motion, e desligada em
+`prefers-reduced-motion`. O primeiro carregamento é de ~124 kB de JS; a Essentia (2 MB de
+WASM) só é baixada quando o usuário escolhe um arquivo.
+
+### O caminho secundário: explorar o catálogo do Spotify
+
+Precisa de `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`. O que a tela faz:
 
 - **Ouvir a faixa exibida** — o painel de análise embute o player oficial do Spotify (faixa
   inteira para quem está logado, prévia para os demais) e, quando existe prévia de 30 s,
@@ -150,9 +183,11 @@ A tela lista todas as features em três blocos: **medidas da Essentia** (BPM e c
 tom, modo, força do tom, dançabilidade, loudness, complexidade dinâmica), **descritores
 espectrais** do extrator próprio (energia/RMS, centroide, rolloff 85%, largura de banda,
 cruzamentos por zero, planicidade, contraste espectral, pico) e **estimativas**
-(acústica, valência e fala), estas últimas marcadas como heurísticas — o Spotify não
-publica mais essas features e elas não são medíveis diretamente. `instrumentalness`,
-`liveness` e `time_signature` ficam de fora por não haver sinal defensável para elas.
+(acústica, valência, fala, instrumental e ao vivo), estas últimas marcadas como
+heurísticas — o Spotify não publica mais essas features e elas não são medíveis
+diretamente. `instrumentalness` e `liveness` entram porque o modelo k=11 as exige; são as
+duas mais frágeis da leitura e a interface as marca como tal. `time_signature` fica de
+fora por não haver sinal defensável e por não entrar no modelo.
 
 Tudo isso roda num Web Worker (`src/workers/audio-analysis.worker.ts`), então a interface
 não trava durante os segundos de processamento; se o worker não subir, a análise cai para
@@ -175,6 +210,20 @@ Resultado atual: **63,5% de acurácia em validação cruzada 5x** (±2,9) em 10 
 pesos avaliada com um softmax — sem runtime de ML no cliente e sem enviar áudio a servidor
 algum. `scripts/classificar_genero.py` continua sendo a referência offline mais completa
 (librosa + Essentia nativos, com Random Forest).
+
+### Rotas da API
+
+| Rota | O que faz |
+|---|---|
+| `POST /api/predict` | Pontua um vetor de 11 features em até 24 gêneros de uma vez. Sem LLM, ~10 ms. É o que sustenta os sliders e a corrida de gêneros. |
+| `POST /api/diagnose` | Mesmo score, mais a explicação em PT-BR gerada por LLM (precisa de `OPENROUTER_API_KEY`; sem ela devolve o score e avisa). |
+| `GET /api/generos` | Os 107 gêneros que o modelo k=11 conhece. |
+| `GET /api/genres` | Gêneros sugeridos para a busca no catálogo do Spotify (outra lista, outro propósito). |
+| `GET /api/tracks`, `/api/tracks/[id]`, `/api/preview/[id]` | Busca, detalhe e prévia de áudio do catálogo. |
+
+O modelo carrega `artifacts/k11_posterior_samples.json.gz` (12 MB, 1.000 amostras do
+posterior) uma vez por processo e o mantém em memória — por isso a pontuação roda no
+servidor e não no cliente.
 
 > `essentia.js` é distribuída sob **AGPL-3.0**: se a aplicação for publicada, a licença
 > exige disponibilizar o código-fonte do serviço.

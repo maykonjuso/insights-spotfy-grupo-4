@@ -7,7 +7,7 @@ import { GenreSelector } from "./GenreSelector";
 import { LandingHero } from "./LandingHero";
 import { PopularityInsights, type TrackDetails } from "./PopularityInsights";
 import { TrackList, type TrackSummary } from "./TrackList";
-import { UploadAnalyzer } from "./UploadAnalyzer";
+import { HitLab } from "./HitLab";
 import { WizardHeader } from "./WizardHeader";
 
 type TracksResponse = {
@@ -149,7 +149,7 @@ export function SpotifyAnalyzer() {
               <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <span>Suas músicas</span>
+          <span>Testar minha música</span>
         </div>
       ) : null}
 
@@ -178,7 +178,7 @@ export function SpotifyAnalyzer() {
           <PopularityInsights details={selectedTrack} isLoading={isLoadingInsight} />
         ) : null}
 
-        {etapa === "upload" ? <UploadAnalyzer /> : null}
+        {etapa === "upload" ? <HitLab /> : null}
       </div>
     </main>
   );

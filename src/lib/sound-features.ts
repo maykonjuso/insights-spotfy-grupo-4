@@ -48,14 +48,14 @@ const MODE_LABEL: Record<string, string> = { major: "maior", minor: "menor" };
 // temos como medir diretamente. Sao monotonas nos sinais que a literatura
 // associa a cada conceito, mas continuam sendo estimativas -- por isso a
 // interface marca cada uma como tal.
-function estimateAcousticness(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
+export function estimateAcousticness(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
   const brilho = clamp(summary.centroid / 4000);
   const ruido = clamp(summary.flatness / 0.5);
   const dinamica = clamp((descriptors?.dynamicComplexity ?? 3) / 8);
   return clamp(0.55 + 0.35 * dinamica - 0.45 * brilho - 0.3 * ruido);
 }
 
-function estimateValence(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
+export function estimateValence(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
   const modo = descriptors?.scale === "major" ? 0.15 : descriptors?.scale === "minor" ? -0.15 : 0;
   const andamento = clamp(((descriptors?.bpm ?? summary.tempo) - 60) / 120);
   const brilho = clamp(summary.centroid / 4000);
@@ -63,11 +63,27 @@ function estimateValence(summary: AudioSummary, descriptors: EssentiaDescriptors
   return clamp(0.5 + modo + 0.2 * (andamento - 0.5) + 0.15 * (brilho - 0.5) + 0.15 * (danca - 0.5));
 }
 
-function estimateSpeechiness(summary: AudioSummary) {
+export function estimateSpeechiness(summary: AudioSummary) {
   const cruzamentos = clamp(summary.zcr / 0.25);
   const ruido = clamp(summary.flatness / 0.4);
   const banda = clamp(summary.bandwidth / 3500);
   return clamp(0.35 * cruzamentos + 0.45 * ruido + 0.2 * banda - 0.12);
+}
+
+// instrumentalness e liveness sao as duas features do modelo sem nenhum
+// analogo direto no que conseguimos medir: entram como heuristicas grosseiras
+// e a interface as marca como o elo mais fraco da leitura.
+export function estimateInstrumentalness(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
+  const fala = estimateSpeechiness(summary);
+  const tonalidade = descriptors?.keyStrength ?? 0.5;
+  const brilho = clamp(summary.centroid / 4000);
+  return clamp(0.6 - 1.4 * fala + 0.35 * (tonalidade - 0.5) - 0.25 * brilho);
+}
+
+export function estimateLiveness(summary: AudioSummary, descriptors: EssentiaDescriptors | null) {
+  const dinamica = clamp((descriptors?.dynamicComplexity ?? 3) / 8);
+  const ruido = clamp(summary.flatness / 0.5);
+  return clamp(0.08 + 0.45 * dinamica + 0.3 * ruido);
 }
 
 export function buildSoundFeatures({
@@ -242,6 +258,22 @@ export function buildSoundFeatures({
           bar: estimateSpeechiness(summary),
           origin: "estimativa",
           hint: "Combina cruzamentos por zero, planicidade espectral e largura de banda.",
+        },
+        {
+          id: "instrumentalness",
+          label: "Instrumental",
+          display: percent(estimateInstrumentalness(summary, descriptors)),
+          bar: estimateInstrumentalness(summary, descriptors),
+          origin: "estimativa",
+          hint: "Cai com presenca de fala e brilho, sobe com tonalidade estavel. Estimativa fraca.",
+        },
+        {
+          id: "liveness",
+          label: "Ao vivo",
+          display: percent(estimateLiveness(summary, descriptors)),
+          bar: estimateLiveness(summary, descriptors),
+          origin: "estimativa",
+          hint: "Sobe com dinamica aberta e ruido de sala. Estimativa fraca.",
         },
       ],
     });

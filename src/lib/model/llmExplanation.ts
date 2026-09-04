@@ -1,10 +1,21 @@
 import OpenAI from 'openai';
 import type { Prediction } from './types';
 
-const openrouter = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-});
+// Instanciado sob demanda: no topo do modulo, o SDK lanca durante o build
+// quando nao ha chave, e derruba a rota inteira -- inclusive o score, que nao
+// depende de LLM nenhum.
+let cliente: OpenAI | null = null;
+
+function getCliente() {
+  if (!process.env.OPENROUTER_API_KEY) return null;
+  if (!cliente) {
+    cliente = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: 'https://openrouter.ai/api/v1',
+    });
+  }
+  return cliente;
+}
 
 const FEATURE_NAMES_PT: Record<string, string> = {
   danceability: 'dançabilidade',
@@ -51,6 +62,11 @@ Top 3 features que mais influenciam este score neste gênero:
 ${featureList}
 
 Explique de forma acessível o que está puxando o score para cima ou para baixo.`;
+
+  const openrouter = getCliente();
+  if (!openrouter) {
+    return 'Explicacao em texto desativada: falta OPENROUTER_API_KEY no servidor. O score e o intervalo acima vem do modelo e nao dependem disso.';
+  }
 
   try {
     const resp = await openrouter.chat.completions.create({
