@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { seekTo, usePlayerState } from "@/lib/preview-player";
 import { PlayButton } from "./PlayButton";
 
@@ -9,6 +10,8 @@ type PreviewPlayerProps = {
   title: string;
   /** envelope do áudio em colunas 0..1; sem ele o player cai numa barra simples */
   forma?: number[];
+  /** quando a capa da música já é o botão de tocar, o player não repete um */
+  semBotao?: boolean;
 };
 
 function tempo(segundos: number) {
@@ -17,7 +20,7 @@ function tempo(segundos: number) {
   return `${minutos}:${String(Math.floor(segundos % 60)).padStart(2, "0")}`;
 }
 
-export function PreviewPlayer({ sourceId, url, title, forma }: PreviewPlayerProps) {
+export function PreviewPlayer({ sourceId, url, title, forma, semBotao }: PreviewPlayerProps) {
   const estado = usePlayerState();
   const atual = estado.sourceId === sourceId;
   const duracao = atual ? estado.duration : 0;
@@ -35,8 +38,8 @@ export function PreviewPlayer({ sourceId, url, title, forma }: PreviewPlayerProp
       : -1;
 
   return (
-    <div className={`player ${tocando ? "is-tocando" : ""}`}>
-      <PlayButton sourceId={sourceId} url={url} title={title} />
+    <div className={`player ${tocando ? "is-tocando" : ""} ${semBotao ? "is-sem-botao" : ""}`}>
+      {semBotao ? null : <PlayButton sourceId={sourceId} url={url} title={title} />}
 
       <div className="player-onda">
         {colunas ? (
@@ -49,7 +52,17 @@ export function PreviewPlayer({ sourceId, url, title, forma }: PreviewPlayerProp
                 .join(" ");
 
               return (
-                <i key={indice} className={classes} style={{ height: `${Math.round(altura * 100)}%` }} />
+                <i
+                  key={indice}
+                  className={classes}
+                  style={
+                    {
+                      height: `${Math.round(altura * 100)}%`,
+                      // escalona a entrada da esquerda para a direita
+                      "--i": indice,
+                    } as CSSProperties
+                  }
+                />
               );
             })}
           </span>

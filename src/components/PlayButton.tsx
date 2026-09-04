@@ -7,6 +7,11 @@ type PlayButtonProps = {
   url?: string | null;
   title: string;
   size?: "sm" | "lg";
+  /** na lista de musicas e no cabecalho do resultado a propria capa vira o
+   * botao: um circulo verde cheio ao lado dela disputava atencao com a arte */
+  capa?: string | null;
+  /** capa maior, usada no cabecalho da tela de resultado */
+  capaGrande?: boolean;
 };
 
 // O triangulo fica levemente deslocado para a direita: num circulo, o centro
@@ -29,9 +34,29 @@ function Pausa() {
   );
 }
 
-export function PlayButton({ sourceId, url, title, size = "sm" }: PlayButtonProps) {
+export function PlayButton({ sourceId, url, title, size = "sm", capa, capaGrande }: PlayButtonProps) {
   const state = usePlayerState();
   const isActive = state.sourceId === sourceId && state.isPlaying;
+
+  if (capa !== undefined) {
+    return (
+      <button
+        type="button"
+        className={`play-capa ${capaGrande ? "is-grande" : ""} ${isActive ? "is-playing" : ""} ${!url ? "is-disabled" : ""}`}
+        aria-label={isActive ? `Pausar ${title}` : `Ouvir ${title}`}
+        disabled={!url}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (url) void togglePlayback(sourceId, url);
+        }}
+      >
+        {capa ? <img src={capa} alt="" /> : <span className="play-capa-vazia" aria-hidden="true" />}
+        <span className="play-capa-glifo" aria-hidden="true">
+          {isActive ? <Pausa /> : <Triangulo />}
+        </span>
+      </button>
+    );
+  }
 
   // estado defensivo: a lista so traz faixas com previa, mas o upload pode
   // chegar aqui antes da URL existir

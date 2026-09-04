@@ -408,7 +408,12 @@ p {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: radial-gradient(120% 70% at 50% 30%, #10261a, var(--bg) 70%);
+  /* Preenche ate as bordas (raio largo evita o anel preto em tela larga), mas
+     o verde entra so como um sopro atras da marca: a base e quase preta, com
+     um leve viés verde. Tres camadas fortes empilhadas deixavam a tela lavada. */
+  background:
+    radial-gradient(64% 42% at 50% 36%, rgba(30, 215, 96, 0.09), transparent 74%),
+    radial-gradient(150% 110% at 50% 36%, #0c1611 0%, #090c0a 46%, var(--bg) 100%);
   cursor: pointer;
   transition: opacity 320ms ease, transform 320ms var(--e);
 }
@@ -421,10 +426,10 @@ p {
 
 .abertura-halo {
   position: absolute;
-  width: min(90vw, 460px);
+  width: min(115vw, 640px);
   aspect-ratio: 1;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(30, 215, 96, 0.28), transparent 62%);
+  background: radial-gradient(circle, rgba(30, 215, 96, 0.14), transparent 64%);
   animation: halo 2.4s var(--e) infinite alternate;
 }
 
@@ -830,19 +835,19 @@ p {
 
 .faixa {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   animation: entra 320ms var(--e) both;
 }
 
 .faixa-toque {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  min-height: 68px;
-  padding: 8px 12px 8px 8px;
+  min-height: 64px;
+  padding: 8px 12px;
   border: 0;
   border-radius: var(--r);
   background: transparent;
@@ -856,13 +861,79 @@ p {
   transform: scale(0.985);
 }
 
-.faixa-toque img,
-.capa-vazia {
+/* A capa e o botao de ouvir: alvo de 52px, glifo discreto por cima da arte.
+   Antes havia um circulo verde de 44px ao lado dela, que pesava mais que a
+   propria musica na linha. */
+.play-capa {
+  position: relative;
+  display: block;
   width: 52px;
   height: 52px;
+  padding: 0;
+  border: 0;
   border-radius: 10px;
   background: var(--surface-2);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.16s var(--e);
+}
+
+.play-capa:active {
+  transform: scale(0.93);
+}
+
+.play-capa img,
+.play-capa-vazia {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.play-capa-glifo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff;
+  transition: background 0.2s ease;
+}
+
+.play-capa-glifo svg {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.play-capa.is-playing .play-capa-glifo {
+  background: rgba(4, 23, 10, 0.55);
+  color: var(--ac-2);
+}
+
+.play-capa.is-grande {
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+}
+
+.play-capa.is-grande .play-capa-glifo svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* sem capa, a arte vazia ainda precisa parecer tocavel */
+.play-capa .play-capa-vazia {
+  background: var(--surface-2);
+}
+
+.play-capa.is-disabled {
+  cursor: default;
+}
+
+.play-capa.is-disabled .play-capa-glifo {
+  color: var(--txt-3);
 }
 
 .faixa-texto {
@@ -991,23 +1062,6 @@ p {
   grid-template-columns: 74px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
-}
-
-.musica-capa {
-  display: grid;
-  width: 74px;
-  height: 74px;
-  place-items: center;
-  border-radius: 14px;
-  background: var(--surface-2);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
-  color: var(--txt-3);
-  object-fit: cover;
-}
-
-.musica-capa.is-vazia svg {
-  width: 30px;
-  height: 30px;
 }
 
 .musica-nome {
@@ -2170,25 +2224,41 @@ p {
 
 /* ---------------- player ---------------- */
 
-
-
-
-
-
-
-
-
-
-
-
 /* ---------------- player ---------------- */
 
 /* Barra fina: a capa e o nome da musica sao o assunto, o player e so o meio
    de ouvir. O icone ocupa quase metade do botao, senao um triangulo pequeno
    dentro de um circulo grande parece um erro de alinhamento. */
 
-.player-bloco .player {
-  width: 100%;
+
+.player.is-sem-botao {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 10px 16px;
+}
+
+/* Entra junto com o play: a barra desce e as colunas crescem da esquerda para
+   a direita, como se a onda estivesse sendo desenhada. */
+.player {
+  animation: player-entra 320ms var(--e) both;
+}
+
+@keyframes player-entra {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
+  }
+}
+
+.onda-colunas i {
+  animation: coluna-nasce 340ms var(--e) both;
+  animation-delay: calc(var(--i, 0) * 5ms);
+}
+
+@keyframes coluna-nasce {
+  from {
+    transform: scaleY(0.08);
+    opacity: 0.35;
+  }
 }
 
 .player {
@@ -2365,23 +2435,6 @@ p {
 }
 
 
-
-
-
-
-
-
-
-.player-bloco {
-  display: grid;
-  gap: 6px;
-  justify-items: center;
-}
-
-.player-legenda {
-  color: var(--txt-3);
-  font-size: 12px;
-}
 
 /* ---------------- telas maiores ---------------- */
 

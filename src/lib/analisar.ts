@@ -28,7 +28,6 @@ export type Musica = {
   subtitulo: string;
   capa?: string;
   audioUrl?: string;
-  legendaAudio?: string;
   linkSpotify?: string;
   duracaoMs: number;
   /** dados curtos da faixa, mostrados como uma linha discreta sob o nome */
@@ -174,7 +173,6 @@ export async function analisarArquivo(
     titulo: arquivo.name.replace(/\.[^.]+$/, ""),
     subtitulo: "Arquivo do seu aparelho",
     audioUrl: URL.createObjectURL(arquivo),
-    legendaAudio: "Tocando do seu aparelho",
     duracaoMs: bruto.duracaoSegundos * 1000,
     detalhes: montarDetalhes(bruto.duracaoSegundos * 1000, leitura.descriptors),
     ...leitura,
@@ -244,7 +242,6 @@ export async function analisarFaixa(
     subtitulo: faixa.artists.map((artista) => artista.name).join(", "),
     capa: faixa.album.images[1]?.url || faixa.album.images[0]?.url,
     audioUrl: `/api/preview/${faixa.id}`,
-    legendaAudio: "Trecho de 30 segundos",
     linkSpotify: faixa.external_urls.spotify,
     duracaoMs: faixa.duration_ms,
     detalhes: montarDetalhes(faixa.duration_ms, leitura.descriptors, faixa.album.release_date),

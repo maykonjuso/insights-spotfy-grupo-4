@@ -129,15 +129,14 @@ export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps
         {!carregando
           ? faixas.map((faixa, indice) => (
               <div className="faixa" key={faixa.id} style={{ animationDelay: `${Math.min(indice, 6) * 40}ms` }}>
-                <PlayButton sourceId={faixa.id} url={`/api/preview/${faixa.id}`} title={faixa.name} />
+                <PlayButton
+                  sourceId={faixa.id}
+                  url={`/api/preview/${faixa.id}`}
+                  title={faixa.name}
+                  capa={faixa.album.images.at(-1)?.url ?? null}
+                />
 
                 <button type="button" className="faixa-toque" onClick={() => onEscolher(faixa)}>
-                  {faixa.album.images.at(-1)?.url ? (
-                    <img src={faixa.album.images.at(-1)?.url} alt="" />
-                  ) : (
-                    <span className="capa-vazia" aria-hidden="true" />
-                  )}
-
                   <span className="faixa-texto">
                     <strong>{faixa.name}</strong>
                     <small>{faixa.artists.map((artista) => artista.name).join(", ")}</small>

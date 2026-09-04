@@ -109,9 +109,13 @@ export function App() {
         />
       ) : null}
 
-      <div className="troca" key={tela}>
-        {tela === "abertura" ? <Abertura onFim={() => setTela("inicio")} /> : null}
+      {/* Fora do container animado de proposito: `.troca` anima com transform, e
+          um ancestral transformado passa a ser o ponto de referencia de um filho
+          `position: fixed`. La dentro, a abertura ficava presa na coluna do app
+          e sobrava fundo preto nas laterais. */}
+      {tela === "abertura" ? <Abertura onFim={() => setTela("inicio")} /> : null}
 
+      <div className="troca" key={tela}>
         {tela === "inicio" ? (
           <Inicio onEnviar={() => irPara("enviar")} onBuscar={() => irPara("buscar")} />
         ) : null}

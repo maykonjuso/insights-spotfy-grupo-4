@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVeredito } from "@/hooks/useVeredito";
 import type { Musica } from "@/lib/analisar";
+import { usePlayerState } from "@/lib/preview-player";
 import { GENEROS_RECONHECIDOS, reconhecidoDeOuvido } from "@/lib/model-bridge";
 import { GenreRace } from "../GenreRace";
+import { PlayButton } from "../PlayButton";
 import { PreviewPlayer } from "../PreviewPlayer";
 import { ScoreDial } from "../ScoreDial";
 import { SoundFeatureGrid } from "../SoundFeatureGrid";
@@ -33,6 +35,11 @@ function frase(score: number, genero: string) {
 
 export function Resultado({ musica, onRecomecar }: ResultadoProps) {
   const veredito = useVeredito(musica.features, musica.generoInicial);
+  // A onda so aparece depois do primeiro toque no play. Antes ela ficava na
+  // tela o tempo todo sem nada acontecendo, ocupando espaco a toa agora que o
+  // comando de tocar mora na propria capa.
+  const player = usePlayerState();
+  const tocandoEsta = player.sourceId === musica.id;
   const mostradorRef = useRef<HTMLDivElement>(null);
   const [notaNaTela, setNotaNaTela] = useState(true);
   const [folhaAberta, setFolhaAberta] = useState(false);
@@ -102,24 +109,14 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
       />
 
       <header className="musica-topo">
-        {musica.capa ? (
-          <img src={musica.capa} alt="" className="musica-capa" />
-        ) : (
-          <span className="musica-capa is-vazia" aria-hidden="true">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M9 18V6l10-2v12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="6.6" cy="18" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.7" />
-              <circle cx="16.6" cy="16" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            </svg>
-          </span>
-        )}
+        {/* a arte e o botao de ouvir, igual a lista de musicas */}
+        <PlayButton
+          sourceId={musica.id}
+          url={musica.audioUrl}
+          title={musica.titulo}
+          capa={musica.capa ?? null}
+          capaGrande
+        />
 
         <div className="musica-nome">
           <strong>{musica.titulo}</strong>
@@ -135,18 +132,14 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
         </div>
       </header>
 
-      {musica.audioUrl ? (
-        <div className="player-bloco">
-          <PreviewPlayer
-            sourceId={musica.id}
-            url={musica.audioUrl}
-            title={musica.titulo}
-            forma={musica.forma}
-          />
-          {/* sem isto, a duracao de 3:09 na linha de dados briga com os 30s que
-              o player toca, e parece defeito */}
-          {musica.legendaAudio ? <small className="player-legenda">{musica.legendaAudio}</small> : null}
-        </div>
+      {musica.audioUrl && tocandoEsta ? (
+        <PreviewPlayer
+          sourceId={musica.id}
+          url={musica.audioUrl}
+          title={musica.titulo}
+          forma={musica.forma}
+          semBotao
+        />
       ) : null}
 
       <div className="explicacao">
