@@ -1,11 +1,21 @@
-# O deploy só precisa do app Next. Estes diretórios somam ~90 MB de dados de
+# O deploy só precisa do app Next. Estes diretórios somam ~35 GB de dados de
 # análise que não entram no build e só fariam o upload demorar.
 .venv/
 data/
 notebooks/
 relatorio/
-scripts/
 logs/
 dataset2(in).csv
 requirements.txt
 *.ipynb
+
+# scripts/ não sai inteiro. O prebuild roda scripts/ts/copiar_essentia_wasm.mjs
+# para pôr o .wasm da essentia.js em public/, e sem esse arquivo no pacote do
+# deploy o build morre logo no começo com MODULE_NOT_FOUND. O diretório todo
+# são 248 KB, então o que se ganhava ignorando ele era nada; aqui fica de fora
+# só a parte de análise em Python, que é a pesada.
+scripts/__pycache__/
+scripts/k11_pipeline/
+scripts/mb/
+scripts/*.py
+scripts/*.sh
