@@ -8,6 +8,10 @@ const MODELO = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash-0731'
 // depende de LLM nenhum.
 let cliente: OpenAI | null = null;
 
+// Timeout de 10s nas chamadas HTTP do OpenRouter. Sem isso, um upstream
+// lento (retry 30s+) trava o worker do Next.js ate esgotar o pool.
+const TIMEOUT_MS = 10_000;
+
 // O valor de exemplo do .env.local.example passa por qualquer checagem de
 // "variavel existe" e so falha la na frente, com 401. Barrar aqui transforma
 // um erro obscuro em uma instrucao clara na tela.
@@ -24,6 +28,7 @@ function getCliente() {
     cliente = new OpenAI({
       apiKey: process.env.OPENROUTER_API_KEY,
       baseURL: 'https://openrouter.ai/api/v1',
+      timeout: TIMEOUT_MS,
     });
   }
   return cliente;
@@ -72,15 +77,17 @@ export async function generateExplanation(
     )
     .join('\n');
 
-  const prompt = `Você explica diagnóstico musical para um usuário leigo em PT-BR. Seja direto, use 2-3 frases curtas, sem jargão estatístico.
+  const prompt = `LEMBRETE: O modelo Bayesiano deste diagnostico tem R^2=0.15 e HDI coverage empirica=0.40 (ou seja, em 60% dos casos o valor real esta FORA do intervalo de 94%). Trate o score como INDICATIVO, nao como predicao. Use linguagem cautelosa ("sugere", "tende a", "pode indicar") em vez de causalidade deterministica.
 
-Gênero: ${genero}
-Score previsto: ${pred.score} (intervalo de credibilidade 94%: ${pred.hdi_lo} a ${pred.hdi_hi})
+Voce explica diagnostico musical para um usuario leigo em PT-BR. Seja direto, use 2-3 frases curtas, sem jargao estatistico.
 
-Top 3 features que mais influenciam este score neste gênero:
+Genero: ${genero}
+Score previsto: ${pred.score} (intervalo de credibilidade 94%: ${pred.hdi_lo} a ${pred.hdi_hi}, largura ${pred.hdi_hi - pred.hdi_lo} pontos)
+
+Top 3 features que mais influenciam este score neste genero:
 ${featureList}
 
-Explique de forma acessível o que está puxando o score para cima ou para baixo.`;
+Explique de forma acessivel o que esta puxando o score para cima ou para baixo, COM HEDGE.`;
 
   const openrouter = getCliente();
   if (!openrouter) {

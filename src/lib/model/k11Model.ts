@@ -44,10 +44,12 @@ export function predict(features: TrackFeatures, genero: string): Prediction {
     predictions[s] = y_pred;
   }
 
-  // Calcular score e HDI
+  // Calcular score e HDI. score e re-clamped em [0, 100] por defesa: cada
+  // pred por-sample ja esta clampada, mas em caso degenerado (N=1 ou
+  // arithmetic overflow) o score poderia quebrar o contrato.
   let sum = 0;
   for (let i = 0; i < N; i++) sum += predictions[i];
-  const score = sum / N;
+  const score = Math.max(0, Math.min(100, sum / N));
   const sorted = Array.from(predictions).sort((a, b) => a - b);
   const hdi_lo = sorted[Math.floor(N * 0.03)];
   const hdi_hi = sorted[Math.floor(N * 0.97)];
