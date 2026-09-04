@@ -30,8 +30,10 @@ data/musicbrainz/
 # Dataset GTZAN (audio, ~1.2 GB)
 data/gtzan/
 
-# Binario WASM copiado da essentia.js no pre-build
-public/essentia/
+# Binario WASM da essentia.js (~2MB) - VERSIONADO em public/essentia/
+# (era gitignored antes porque era copiado em pre-build; agora e commitado
+# diretamente para simplificar o deploy sem script de pre-build)
+# public/essentia/
 
 # K=11 / Q9 drop-one: arrays de log-likelihood por sample (~2.7 GB, regeneráveis)
 q9_*.npy
@@ -44,3 +46,20 @@ q9_*.nc
 scripts/k11_pipeline/artifacts/
 scripts/k11_pipeline/spotify_tracks_limpo.parquet
 scripts/k11_pipeline/*.log
+
+# K=11 MVP (Wave 1, 2026-09): artefatos grandes do modelo treinado
+# (pequenos sao versionados, ~100KB no total; estes sao ~100MB e regeneraveis
+# via scripts/k11_pipeline_colab/{train,export}.py em Colab T4 ~75 min)
+artifacts/k11_posterior.nc
+artifacts/k11_posterior_samples.json.gz
+artifacts/_backup_*/
+artifacts/*.bak
+
+# Gauntlet Loop (work artifacts de orquestracao multi-agent; nao sao produto)
+gauntlet/_logs/
+gauntlet/_backup/
+gauntlet/_screenshots/
+gauntlet/gauntlet-workbench.html
+
+# Models audio local (~1.2 GB em testes de chirp, regeneraveis)
+scripts/critic-chirp-test.ts
