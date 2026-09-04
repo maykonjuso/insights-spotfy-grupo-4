@@ -5,10 +5,25 @@ import { canalSse } from "./sse";
 import type { Canal, Motor } from "./tipos";
 
 // A checagem lê variável de ambiente, não precisa do cliente do Supabase junto.
-export function temSupabase() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+//
+// Dois nomes de chave porque o Supabase trocou a nomenclatura: os projetos
+// antigos entregam uma `anon` (um JWT começando com eyJ) e os novos entregam
+// uma `publishable` (começando com sb_publishable_). As duas servem para o
+// mesmo lugar, então aceitar as duas evita uma falha silenciosa por causa do
+// nome da variável.
+//
+// As referências precisam ser literais: o Next substitui `process.env.X` pelo
+// valor em tempo de build, e uma busca dinâmica não seria substituída.
+export function chaveSupabase() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    ""
   );
+}
+
+export function temSupabase() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && chaveSupabase());
 }
 
 export * from "./tipos";

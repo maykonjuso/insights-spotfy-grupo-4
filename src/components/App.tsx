@@ -10,6 +10,7 @@ import { BuscarMusica, type Faixa } from "./telas/BuscarMusica";
 import { EnviarMusica } from "./telas/EnviarMusica";
 import { Inicio } from "./telas/Inicio";
 import { Resultado } from "./telas/Resultado";
+import { useApresentacao } from "./apresentacao/Apresentacao";
 import { TopBar } from "./ui/TopBar";
 
 type Tela = "abertura" | "inicio" | "enviar" | "buscar" | "analisando" | "resultado";
@@ -34,12 +35,30 @@ export function App() {
   const [genero, setGenero] = useState(ESTILO_INICIAL);
   const [erro, setErro] = useState<string | null>(null);
 
+  // O app não falava com a apresentação: quem apresentava navegava aqui dentro e
+  // ninguém era levado junto, porque `tela` é estado local e nunca era
+  // publicado nem aplicado.
+  const { seguindo, transmitindo, transmitir } = useApresentacao();
+
   // O trabalho de rede comeca junto com a animacao de abertura, nao depois
   // dela: quando a tela de busca aparece, a lista ja esta em memoria.
   useEffect(() => {
     prefetch(ESTILO_INICIAL);
     void fetch("/api/generos").catch(() => {});
   }, []);
+
+  // acompanhando: a tela vem de quem transmite
+  useEffect(() => {
+    const alvo = seguindo?.tela as Tela | undefined;
+    if (!alvo) return;
+    setTela((atual) => (atual === alvo ? atual : alvo));
+  }, [seguindo?.tela]);
+
+  // transmitindo: publica a tela em que estou
+  useEffect(() => {
+    if (!transmitindo) return;
+    transmitir({ rota: "/", tela, rolagem: 0 });
+  }, [transmitindo, tela, transmitir]);
 
   const irPara = useCallback((proxima: Tela) => {
     stopPlayback();

@@ -31,7 +31,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR" className={inter.variable}>
       <body>
-        <Apresentacao>{children}</Apresentacao>
+        <Apresentacao>
+          {/* Palco: a aplicação tem sempre largura de celular, mesmo no
+              computador. Não é só estética. O ponteiro de quem apresenta viaja
+              em fração da largura, e com o computador em 1920px e o celular em
+              390px a mesma fração cai em lugares diferentes da tela. Com todo
+              mundo na mesma proporção, o espelho bate. */}
+          <div className="palco">{children}</div>
+        </Apresentacao>
       </body>
     </html>
   );

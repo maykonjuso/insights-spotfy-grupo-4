@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SECOES } from "@/lib/projeto-conteudo";
 import { descricaoDoMotor, motorAtual, motorDoServidor, type Motor } from "@/lib/transmissao";
 import { Retrato, useApresentacao } from "./Apresentacao";
@@ -40,11 +41,12 @@ async function reduzirFoto(arquivo: File): Promise<string> {
 export function PainelAdmin() {
   const { iniciar, encerrar, transmitindo, transmitir, apresentador } = useApresentacao();
   const inputFoto = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const [nome, setNome] = useState("");
   const [foto, setFoto] = useState<string | undefined>();
 
-  // ao voltar para o /admin com a transmissão já no ar, os campos reaparecem
+  // ao voltar para o /admin com a apresentação já no ar, os campos reaparecem
   useEffect(() => {
     if (!apresentador) return;
     setNome((atual) => atual || apresentador.nome);
@@ -73,13 +75,12 @@ export function PainelAdmin() {
     [transmitindo, transmitir, nome, foto, secao, alvo],
   );
 
-  // Repete o estado a cada 3s. Quem abrir o app no meio da apresentação
-  // precisa receber o convite, e o convite nasce de um "estado" chegando.
+  // Publica ao entrar no ar e a cada mudança daqui. A repetição periódica, que
+  // é o que faz o convite chegar a quem abre o app no meio da apresentação,
+  // mora no provedor: aqui ela morria assim que esta tela desmontava.
   useEffect(() => {
     if (!transmitindo) return;
     publicar();
-    const pulso = setInterval(() => publicar(), 3000);
-    return () => clearInterval(pulso);
   }, [transmitindo, publicar]);
 
   const indice = SECOES.findIndex((s) => s.id === secao);
@@ -145,6 +146,23 @@ export function PainelAdmin() {
 
           {erro ? <p className="aviso is-erro">{erro}</p> : null}
 
+          <div className="admin-alvos" role="group" aria-label="O que apresentar">
+            <button
+              type="button"
+              className={`chip ${alvo === "landing" ? "is-ativo" : ""}`}
+              onClick={() => setAlvo("landing")}
+            >
+              Página do projeto
+            </button>
+            <button
+              type="button"
+              className={`chip ${alvo === "app" ? "is-ativo" : ""}`}
+              onClick={() => setAlvo("app")}
+            >
+              O app
+            </button>
+          </div>
+
           <p className={`admin-motor is-${motor === "sse" && servidor === "upstash" ? "supabase" : motor}`}>
             {descricaoDoMotor(motor, servidor)}
           </p>
@@ -153,9 +171,14 @@ export function PainelAdmin() {
             type="button"
             className="btn-principal"
             disabled={nome.trim().length < 2}
-            onClick={() => iniciar({ id: "admin", nome: nome.trim(), foto })}
+            onClick={() => {
+              iniciar({ id: "admin", nome: nome.trim(), foto });
+              // já abre o que vai ser apresentado: antes era preciso trocar de
+              // página na mão depois de começar
+              router.push(alvo === "landing" ? "/projeto" : "/");
+            }}
           >
-            Transmitir
+            Começar apresentação
           </button>
 
           <Link href="/" className="admin-voltar">
@@ -249,10 +272,10 @@ export function PainelAdmin() {
 
         <div className="admin-rodape">
           <Link href={alvo === "landing" ? "/projeto" : "/"} className="btn-secundario">
-            Abrir o que estou transmitindo
+            Abrir o que estou apresentando
           </Link>
           <button type="button" className="admin-parar" onClick={encerrar}>
-            Encerrar transmissão
+            Encerrar apresentação
           </button>
         </div>
       </div>

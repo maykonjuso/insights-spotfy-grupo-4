@@ -1,17 +1,16 @@
 "use client";
 
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
+import { chaveSupabase } from "./index";
 import type { Canal, Mensagem } from "./tipos";
 
 // Broadcast puro do Supabase Realtime: não cria tabela, não escreve no banco,
 // não usa autenticação. É só um canal de mensagens efêmeras, que é exatamente
 // o que uma apresentação ao vivo precisa.
 export function canalSupabase(sala: string): Canal {
-  const cliente = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { realtime: { params: { eventsPerSecond: 30 } } },
-  );
+  const cliente = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, chaveSupabase(), {
+    realtime: { params: { eventsPerSecond: 30 } },
+  });
 
   const ouvintes = new Set<(m: Mensagem) => void>();
   let pronto = false;

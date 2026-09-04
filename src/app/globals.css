@@ -40,6 +40,10 @@
   --e: cubic-bezier(0.22, 1, 0.36, 1);
   --e-mola: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* largura do palco: o app inteiro vive dentro disso, no celular e no
+     computador, para o espelho da apresentação bater entre aparelhos */
+  --palco: 460px;
+
   --lado: max(18px, env(safe-area-inset-left));
   --lado-dir: max(18px, env(safe-area-inset-right));
 
@@ -124,10 +128,26 @@ p {
 
 /* ---------------- estrutura ---------------- */
 
+.palco {
+  position: relative;
+  width: min(100%, var(--palco));
+  min-height: 100svh;
+  margin: 0 auto;
+}
+
+@media (min-width: 620px) {
+  /* no computador o palco ganha as bordas de um aparelho, para ficar claro que
+     o que se vê ali é exatamente o que quem está no celular vê */
+  .palco {
+    border-right: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+  }
+}
+
 .app {
   display: flex;
   flex-direction: column;
-  width: min(100%, 560px);
+  width: 100%;
   min-height: 100svh;
   margin: 0 auto;
   padding: 0 var(--lado-dir) 0 var(--lado);
@@ -1486,7 +1506,7 @@ p {
   align-items: center;
   /* mesma coluna do conteudo: largura do app menos as duas margens laterais.
      Antes tinha largura propria e ficava desalinhada com o resto da tela. */
-  width: calc(min(100%, 560px) - var(--lado) - var(--lado-dir));
+  width: calc(min(100%, var(--palco)) - var(--lado) - var(--lado-dir));
   padding: 9px 14px 9px 9px;
   border: var(--borda-cartao);
   border-radius: 999px;
@@ -1833,7 +1853,7 @@ p {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(100%, 560px);
+  width: min(100%, var(--palco));
   max-height: 86svh;
   border-radius: 26px 26px 0 0;
   background: var(--surface);
@@ -2630,10 +2650,6 @@ p {
 }
 
 @media (min-width: 620px) {
-  .app {
-    width: min(100%, 620px);
-  }
-
   .cartao-nota {
     padding: 28px 24px;
   }
@@ -2814,8 +2830,7 @@ p {
 }
 
 .projeto-corpo {
-  width: min(100%, 720px);
-  margin: 0 auto;
+  width: 100%;
   padding: 0 var(--lado-projeto);
 }
 
@@ -3233,40 +3248,6 @@ p {
   pointer-events: none;
 }
 
-.convite-cartao {
-  position: relative;
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 12px 14px;
-  width: min(100%, 460px);
-  padding: 16px;
-  border: var(--borda-cartao);
-  border-radius: var(--r-cartao);
-  background: rgba(24, 24, 28, 0.96);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(14px);
-  overflow: hidden;
-  pointer-events: auto;
-  animation: sobe 380ms var(--e) both;
-}
-
-.convite-texto {
-  display: grid;
-  gap: 2px;
-  align-content: center;
-  min-width: 0;
-}
-
-.convite-texto strong {
-  font-size: 15.5px;
-  letter-spacing: -0.01em;
-}
-
-.convite-texto span {
-  color: var(--txt-2);
-  font-size: 13.5px;
-}
-
 .convite-acoes {
   display: grid;
   grid-column: 1 / -1;
@@ -3331,25 +3312,6 @@ p {
   cursor: not-allowed;
 }
 
-.espelho-faixa {
-  position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
-  left: 50%;
-  z-index: 92;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: min(100% - 20px, 420px);
-  padding: 7px 8px 7px 7px;
-  border: 1px solid rgba(30, 215, 96, 0.4);
-  border-radius: 999px;
-  background: rgba(20, 26, 22, 0.94);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(12px);
-  transform: translateX(-50%);
-  animation: sobe-faixa 420ms var(--e) both;
-}
-
 @keyframes sobe-faixa {
   from {
     opacity: 0;
@@ -3357,22 +3319,236 @@ p {
   }
 }
 
+/* ---------------- bolha de quem apresenta ---------------- */
+
+/* Fica em toda página. Antes os controles só existiam no /admin, então era
+   preciso voltar para lá só para encerrar. */
+
+.bolha {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 96;
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.bolha-toque {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(24, 26, 25, 0.94);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s var(--e-mola);
+}
+
+.bolha-toque:active {
+  transform: scale(0.92);
+}
+
+.bolha .retrato {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+}
+
+/* aro que pulsa: diz "no ar" sem ocupar espaço com texto */
+.bolha-aro {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--ac);
+  border-radius: 999px;
+  animation: aro-vivo 2s ease-out infinite;
+}
+
+@keyframes aro-vivo {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+
+.bolha-ponto {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #0b0d0c;
+  border-radius: 999px;
+  background: var(--ac);
+}
+
+.bolha-painel {
+  display: grid;
+  gap: 6px;
+  width: 232px;
+  padding: 14px;
+  border: 1px solid rgba(30, 215, 96, 0.3);
+  border-radius: 18px;
+  background: rgba(22, 25, 23, 0.96);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  animation: entra 240ms var(--e) both;
+}
+
+.bolha-topo {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.bolha-topo strong {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.bolha-selo {
+  color: var(--ac-2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.bolha-acao {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border: var(--borda-cartao);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--txt);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bolha-acao.is-parar {
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.1);
+  color: #ffc9c9;
+}
+
+/* ---------------- quem está acompanhando ---------------- */
+
+.espelho-faixa {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 95;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  width: calc(min(100%, var(--palco)) - 20px);
+  padding: 10px 12px 10px 10px;
+  border: 1px solid rgba(30, 215, 96, 0.4);
+  border-radius: 22px;
+  background: linear-gradient(140deg, rgba(30, 215, 96, 0.16), rgba(18, 22, 19, 0.96) 62%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  transform: translateX(-50%);
+  animation: sobe-faixa 460ms var(--e-mola) both;
+}
+
+@keyframes sobe-faixa {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-22px) scale(0.94);
+  }
+}
+
+/* a foto é o que deve chamar atenção: fica grande, com um aro que respira */
+.espelho-foto,
+.convite-foto {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.espelho-foto .retrato,
+.convite-foto .retrato {
+  width: 54px;
+  height: 54px;
+  border: 2px solid var(--ac);
+  font-size: 18px;
+}
+
+.convite-foto .retrato {
+  width: 62px;
+  height: 62px;
+  font-size: 21px;
+}
+
+.espelho-aro,
+.convite-aro {
+  position: absolute;
+  inset: -5px;
+  border: 2px solid var(--ac);
+  border-radius: 999px;
+  animation: aro-vivo 2.2s ease-out infinite;
+}
+
 .espelho-nome {
-  flex: 1;
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.espelho-nome strong {
   overflow: hidden;
-  color: var(--txt-2);
-  font-size: 13px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.espelho-nome strong {
-  color: var(--txt);
+.espelho-nome small {
+  overflow: hidden;
+  color: var(--txt-2);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.espelho-selo {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--ac-2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.espelho-selo i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ac);
+  animation: pulso-ar 1.4s ease-in-out infinite;
 }
 
 .espelho-sair {
   flex: 0 0 auto;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -3384,13 +3560,66 @@ p {
 }
 
 .espelho-sair:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
+}
+
+/* ---------------- convite ---------------- */
+
+.convite-cartao {
+  position: relative;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 14px 16px;
+  width: min(100%, var(--palco));
+  padding: 18px;
+  border: 1px solid rgba(30, 215, 96, 0.32);
+  border-radius: 24px;
+  background: linear-gradient(150deg, rgba(30, 215, 96, 0.14), rgba(20, 23, 21, 0.97) 60%);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: sobe 420ms var(--e-mola) both;
+}
+
+.convite-texto {
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  min-width: 0;
+}
+
+.convite-texto strong {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.convite-texto span:not(.espelho-selo) {
+  color: var(--txt-2);
+  font-size: 13.5px;
+  line-height: 1.45;
 }
 
 /* ---------------- ponteiro e cliques ---------------- */
 
-.espelho-cursor {
+/* Camada presa à janela, com a largura do palco. O ponteiro chega em fração do
+   palco no eixo x e da janela no eixo y, então este é o retângulo em que essas
+   duas frações significam a mesma coisa para todo mundo. */
+.espelho-camada {
   position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 94;
+  width: min(100%, var(--palco));
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.espelho-cursor {
+  position: absolute;
   z-index: 95;
   display: flex;
   gap: 4px;
@@ -3421,7 +3650,7 @@ p {
 }
 
 .espelho-clique {
-  position: fixed;
+  position: absolute;
   z-index: 94;
   width: 14px;
   height: 14px;

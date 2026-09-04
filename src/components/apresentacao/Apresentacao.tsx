@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Bolha } from "./Bolha";
 import {
   abrirCanal,
   intervaloDoCursor,
@@ -51,7 +52,7 @@ export function useApresentacao() {
 
 // Quem apresenta continua sendo quem apresenta ao trocar de aba ou de rota.
 // Sem isto, abrir o app numa segunda aba criava um provedor novo que se achava
-// espectador, e a transmissão morria assim que o apresentador saía do /admin.
+// espectador, e a apresentação morria assim que o apresentador saía do /admin.
 const CHAVE = "popularity-lab:apresentador";
 
 function lerApresentador(): Apresentador | null {
@@ -64,8 +65,30 @@ function lerApresentador(): Apresentador | null {
   }
 }
 
+/**
+ * Converte um ponto da janela em fração do palco, e de volta.
+ *
+ * Enquanto era fração da janela, o ponteiro de quem apresentava no computador
+ * caía em outro lugar na tela de quem assistia no celular: 1920px e 390px de
+ * largura dão significados diferentes para "metade da tela". O palco tem a
+ * mesma proporção nos dois, então a fração passa a significar a mesma coisa.
+ */
+function retanguloDoPalco() {
+  const palco = document.querySelector(".palco");
+  return palco?.getBoundingClientRect() ?? null;
+}
+
+function paraFracao(x: number, y: number) {
+  const r = retanguloDoPalco();
+  if (!r || r.width === 0) return null;
+  // x é fração do palco, porque é aí que a largura difere entre computador e
+  // celular. y é fração da janela, e não do palco: o palco tem a altura do
+  // documento inteiro, e a rolagem já viaja em mensagem própria.
+  return { x: (x - r.left) / r.width, y: y / window.innerHeight };
+}
+
 const SEGUNDOS_PARA_ACEITAR = 5;
-/** um estado sem sinal por mais que isso significa que a transmissão acabou */
+/** um estado sem sinal por mais que isso significa que a apresentação acabou */
 const SILENCIO_ATE_ENCERRAR = 20_000;
 
 export function Apresentacao({ children }: { children: ReactNode }) {
@@ -74,6 +97,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const rotaAtual = usePathname();
 
   const [convite, setConvite] = useState<Apresentador | null>(null);
+  const conviteRef = useRef(false);
   const [contagem, setContagem] = useState(SEGUNDOS_PARA_ACEITAR);
   const [seguindo, setSeguindo] = useState<Estado | null>(null);
   const [recusados, setRecusados] = useState<string[]>([]);
@@ -83,6 +107,9 @@ export function Apresentacao({ children }: { children: ReactNode }) {
 
   const euApresento = useRef<Apresentador | null>(null);
   const ultimoSinal = useRef(0);
+  const seguindoRef = useRef(false);
+  /** última posição publicada, repetida pelo batimento */
+  const ultimaPosicao = useRef<Posicao | null>(null);
   const [apresentador, setApresentador] = useState<Apresentador | null>(null);
 
   // retoma o papel de apresentador ao abrir outra aba ou trocar de rota
@@ -131,7 +158,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     try {
       window.localStorage.removeItem(CHAVE);
     } catch {
-      // navegador sem storage: a transmissão só não sobrevive à troca de aba
+      // navegador sem storage: a apresentação só não sobrevive à troca de aba
     }
   }, []);
 
@@ -160,14 +187,16 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       if (mensagem.tipo === "estado") {
         ultimoSinal.current = Date.now();
         setSeguindo((atual) => (atual ? mensagem.estado : atual));
-        setConvite((atual) => {
-          if (atual) return atual;
-          const id = mensagem.estado.apresentador.id;
-          // já estou seguindo, ou já disse que não
-          if (recusados.includes(id)) return null;
+        // Já seguindo, ou já recusei: nada de convidar de novo. Sem esta
+        // checagem o convite voltava a cada estado recebido, ou seja de três em
+        // três segundos, por cima de quem já estava acompanhando.
+        if (seguindoRef.current || recusados.includes(mensagem.estado.apresentador.id)) return;
+
+        if (!conviteRef.current) {
+          conviteRef.current = true;
           setContagem(SEGUNDOS_PARA_ACEITAR);
-          return mensagem.estado.apresentador;
-        });
+          setConvite(mensagem.estado.apresentador);
+        }
         return;
       }
 
@@ -185,6 +214,14 @@ export function Apresentacao({ children }: { children: ReactNode }) {
 
     return inscricao;
   }, [recusados, canalPronto]);
+
+  useEffect(() => {
+    seguindoRef.current = seguindo !== null;
+  }, [seguindo]);
+
+  useEffect(() => {
+    conviteRef.current = convite !== null;
+  }, [convite]);
 
   // ---- convite com aceite automático
   useEffect(() => {
@@ -244,11 +281,50 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const transmitir = useCallback((posicao: Posicao) => {
     const eu = euApresento.current;
     if (!eu) return;
+    ultimaPosicao.current = posicao;
     canal.current?.enviar({
       tipo: "estado",
       estado: { ...posicao, apresentador: eu, em: Date.now() },
     });
   }, []);
+
+  // Batimento no provedor, e não na tela do /admin.
+  //
+  // Ele morava lá dentro, e a tela do /admin desmonta assim que o apresentador
+  // vai demonstrar o app. Sem estado chegando, todo mundo que acompanhava caía
+  // depois dos 20s de silêncio. Aqui ele sobrevive à navegação, porque o
+  // provedor está no layout e nunca desmonta.
+  useEffect(() => {
+    if (!transmitindo) return;
+
+    const pulso = setInterval(() => {
+      const posicao = ultimaPosicao.current;
+      if (posicao) transmitir(posicao);
+    }, 3000);
+
+    return () => clearInterval(pulso);
+  }, [transmitindo, transmitir]);
+
+  // rolagem de quem apresenta, em fração da altura rolável
+  useEffect(() => {
+    if (!transmitindo) return;
+
+    let ultimo = 0;
+    function aoRolar() {
+      const agora = performance.now();
+      if (agora - ultimo < 200) return;
+      ultimo = agora;
+
+      const rolavel = document.documentElement.scrollHeight - window.innerHeight;
+      const posicao = ultimaPosicao.current;
+      if (!posicao || rolavel <= 0) return;
+
+      transmitir({ ...posicao, rolagem: window.scrollY / rolavel });
+    }
+
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => window.removeEventListener("scroll", aoRolar);
+  }, [transmitindo, transmitir]);
 
   const iniciar = useCallback((novo: Apresentador) => {
     euApresento.current = novo;
@@ -259,7 +335,7 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     try {
       window.localStorage.setItem(CHAVE, JSON.stringify(novo));
     } catch {
-      // sem storage a transmissão vale só nesta aba, e isso é aceitável
+      // sem storage a apresentação vale só nesta aba, e isso é aceitável
     }
   }, []);
 
@@ -276,19 +352,14 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       // não deixa a mão mais suave
       if (agora - ultimo < espera) return;
       ultimo = agora;
-      canal.current?.enviar({
-        tipo: "cursor",
-        x: evento.clientX / window.innerWidth,
-        y: evento.clientY / window.innerHeight,
-      });
+
+      const ponto = paraFracao(evento.clientX, evento.clientY);
+      if (ponto) canal.current?.enviar({ tipo: "cursor", ...ponto });
     }
 
     function aoClicar(evento: PointerEvent) {
-      canal.current?.enviar({
-        tipo: "clique",
-        x: evento.clientX / window.innerWidth,
-        y: evento.clientY / window.innerHeight,
-      });
+      const ponto = paraFracao(evento.clientX, evento.clientY);
+      if (ponto) canal.current?.enviar({ tipo: "clique", ...ponto });
     }
 
     window.addEventListener("pointermove", aoMover, { passive: true });
@@ -307,6 +378,9 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   return (
     <ApresentacaoContexto.Provider value={valor}>
       {children}
+
+      {/* quem apresenta leva a bolha para qualquer página */}
+      {transmitindo && apresentador ? <Bolha apresentador={apresentador} onEncerrar={encerrar} /> : null}
 
       {convite && !seguindo ? (
         <Convite
@@ -344,11 +418,18 @@ function Convite({
   return (
     <div className="convite" role="dialog" aria-live="polite">
       <div className="convite-cartao">
-        <Retrato apresentador={apresentador} />
+        <span className="convite-foto">
+          <span className="convite-aro" aria-hidden="true" />
+          <Retrato apresentador={apresentador} />
+        </span>
 
         <div className="convite-texto">
-          <strong>{apresentador.nome} está apresentando</strong>
-          <span>Quer acompanhar a tela dele?</span>
+          <span className="espelho-selo">
+            <i aria-hidden="true" />
+            ao vivo
+          </span>
+          <strong>{apresentador.nome}</strong>
+          <span>está apresentando. Quer acompanhar a tela?</span>
         </div>
 
         <div className="convite-acoes">
@@ -386,15 +467,27 @@ function Espelho({
       <div className="espelho-trava" aria-hidden="true" />
 
       <div className="espelho-faixa">
-        <Retrato apresentador={apresentador} pequeno />
-        <span className="espelho-nome">
-          Acompanhando <strong>{apresentador.nome}</strong>
+        <span className="espelho-foto">
+          <span className="espelho-aro" aria-hidden="true" />
+          <Retrato apresentador={apresentador} />
         </span>
+
+        <span className="espelho-nome">
+          <span className="espelho-selo">
+            <i aria-hidden="true" />
+            ao vivo
+          </span>
+          <strong>{apresentador.nome}</strong>
+          <small>está apresentando para você</small>
+        </span>
+
         <button type="button" className="espelho-sair" onClick={onSair}>
           Sair
         </button>
       </div>
 
+      {/* camada com a mesma geometria do palco: o x veio em fração dele */}
+      <span className="espelho-camada" aria-hidden="true">
       {cursor ? (
         <span
           className="espelho-cursor"
@@ -416,6 +509,7 @@ function Espelho({
           aria-hidden="true"
         />
       ))}
+      </span>
     </>
   );
 }

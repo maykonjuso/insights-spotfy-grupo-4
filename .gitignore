@@ -9,7 +9,9 @@ node_modules/
 .next/
 out/
 *.tsbuildinfo
-.env*.local
+# `.env*` e nao `.env*.local`: o padrao antigo nao pegava copias de seguranca
+# como `.env.local.bak`, e foi assim que uma chave real entrou num commit.
+.env*
 !.env.local.example
 
 # Dados gerados pelo notebook (reproduziveis a partir do CSV bruto)
