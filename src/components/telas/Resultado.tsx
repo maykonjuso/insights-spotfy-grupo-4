@@ -13,7 +13,7 @@ import { SoundFeatureGrid } from "../SoundFeatureGrid";
 import { WhatIfPanel } from "../WhatIfPanel";
 import { useEstadoEspelhado } from "../apresentacao/Apresentacao";
 import { Alterna } from "../ui/Alterna";
-import { PensandoIA } from "../ui/PensandoIA";
+import { BrilhoIA, PensandoIA } from "../ui/PensandoIA";
 import { ResumoFixo } from "../ui/ResumoFixo";
 import { Revelar } from "../ui/Revelar";
 import { Sheet } from "../ui/Sheet";
@@ -148,7 +148,12 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
         {veredito.explicando || !veredito.pronto ? <PensandoIA /> : null}
 
         {!veredito.explicando && veredito.explicacao ? (
-          <p className="explicacao-texto">{veredito.explicacao}</p>
+          <div className="explicacao-pronta">
+            {/* o brilho continua ali depois do texto chegar: é a assinatura de
+                que aquele parágrafo foi escrito por um modelo */}
+            <BrilhoIA />
+            <p className="explicacao-texto">{veredito.explicacao}</p>
+          </div>
         ) : null}
 
         {!veredito.explicando && !veredito.explicacao && veredito.motivoSemTexto ? (

@@ -12,6 +12,21 @@ const FRASES = [
   "Escrevendo a leitura…",
 ];
 
+/** só os brilhos, para acompanhar o texto depois que ele chega */
+export function BrilhoIA() {
+  return (
+    <span className="pensando-brilhos is-pequeno" aria-hidden="true">
+      <span className="pensando-halo" />
+      <svg className="brilho brilho-grande" viewBox="0 0 24 24">
+        <path d="M12 2.6l1.9 5.6 5.6 1.9-5.6 1.9-1.9 5.6-1.9-5.6L4.5 10.1l5.6-1.9z" fill="currentColor" />
+      </svg>
+      <svg className="brilho brilho-medio" viewBox="0 0 24 24">
+        <path d="M12 4l1.4 4.1 4.1 1.4-4.1 1.4L12 15l-1.4-4.1L6.5 9.5l4.1-1.4z" fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
+
 export function PensandoIA() {
   const [frase, setFrase] = useState(0);
 

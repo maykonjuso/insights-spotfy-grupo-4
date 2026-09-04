@@ -296,16 +296,26 @@ export function Apresentacao({ children }: { children: ReactNode }) {
 
   // ---- espelho: rota, rolagem e trava
   const ultimaRolagem = useRef(-1);
+  const ultimaSecaoVista = useRef<string | undefined>(undefined);
+  const trocouSecaoEm = useRef(0);
 
   useEffect(() => {
     if (!seguindo) return;
 
     if (seguindo.rota && seguindo.rota !== rotaAtual) router.push(seguindo.rota);
 
-    // Quando vem uma seção, quem posiciona a página é a landing, com
-    // scrollIntoView. Rolar por fração ao mesmo tempo faria as duas brigarem, e
-    // o resultado era o slide nunca chegar no lugar.
-    if (seguindo.secao) return;
+    // Troca de seção: quem posiciona a página é a landing, com scrollIntoView.
+    // Rolar por fração ao mesmo tempo faria as duas brigarem, e o slide nunca
+    // chegava no lugar. Mas só enquanto o salto acontece: passada essa janela,
+    // a rolagem volta a ser espelhada, senão descer e subir dentro de uma
+    // seção não chegava do outro lado.
+    if (seguindo.secao !== ultimaSecaoVista.current) {
+      ultimaSecaoVista.current = seguindo.secao;
+      trocouSecaoEm.current = Date.now();
+      return;
+    }
+
+    if (Date.now() - trocouSecaoEm.current < 900) return;
 
     // o batimento repete o mesmo estado de três em três segundos; sem este
     // corte, cada repetição disparava uma rolagem suave por cima da anterior
@@ -320,12 +330,23 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     }
   }, [seguindo, rotaAtual, router]);
 
+  // Bloqueio de gesto, e não `overflow: hidden` no body.
+  //
+  // O overflow escondido propaga para a janela e a torna não rolável, e aí o
+  // próprio `window.scrollTo` do espelho parava de funcionar: descer parecia
+  // funcionar por acaso, subir de novo nunca voltava. Aqui o gesto é impedido
+  // na origem e a rolagem programada continua livre.
   useEffect(() => {
     if (!seguindo) return;
-    const anterior = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+
+    const impedir = (evento: Event) => evento.preventDefault();
+
+    window.addEventListener("wheel", impedir, { passive: false });
+    window.addEventListener("touchmove", impedir, { passive: false });
+
     return () => {
-      document.body.style.overflow = anterior;
+      window.removeEventListener("wheel", impedir);
+      window.removeEventListener("touchmove", impedir);
     };
   }, [seguindo]);
 
@@ -537,7 +558,8 @@ function Espelho({
 }) {
   return (
     <>
-      {/* trava tudo menos a faixa de cima: quem acompanha assiste e sai */}
+      {/* trava o toque em tudo, menos a faixa de cima: quem acompanha assiste
+          e sai */}
       <div className="espelho-trava" aria-hidden="true" />
 
       <div className="espelho-faixa">

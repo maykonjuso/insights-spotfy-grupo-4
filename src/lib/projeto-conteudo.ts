@@ -18,6 +18,20 @@ export type Aprofundamento = {
 
 export type Secao = {
   id: string;
+  /** cor que a tela assume quando a seção entra */
+  tom: string;
+  /** ícone animado da seção */
+  icone:
+    | "onda"
+    | "duvida"
+    | "passos"
+    | "duplo"
+    | "alvo"
+    | "perguntas"
+    | "funil"
+    | "dispersao"
+    | "curva"
+    | "bandeira";
   /** numero do slide correspondente no PDF da apresentacao */
   slide: number;
   etiqueta: string;
@@ -34,6 +48,8 @@ export type Secao = {
 export const SECOES: Secao[] = [
   {
     id: "abertura",
+    tom: "#1ed760",
+    icone: "onda",
     slide: 1,
     etiqueta: "Popularity Lab",
     titulo: "Essa música tem cara de hit?",
@@ -51,6 +67,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "problema",
+    tom: "#ff6b6b",
+    icone: "duvida",
     slide: 2,
     etiqueta: "O problema",
     titulo: "Muita decisão ainda é feita no achismo.",
@@ -73,6 +91,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "solucao",
+    tom: "#3ba9ff",
+    icone: "passos",
     slide: 3,
     etiqueta: "A solução",
     titulo: "Uma leitura rápida do potencial da música.",
@@ -97,6 +117,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "produto",
+    tom: "#8b7bff",
+    icone: "duplo",
     slide: 4,
     etiqueta: "O produto",
     titulo: "Duas análises no mesmo lugar.",
@@ -134,6 +156,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "valor",
+    tom: "#1ed760",
+    icone: "alvo",
     slide: 5,
     etiqueta: "Valor",
     titulo: "Menos achismo, mais indicativo.",
@@ -146,6 +170,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "perguntas",
+    tom: "#ffb340",
+    icone: "perguntas",
     slide: 6,
     etiqueta: "Análise",
     titulo: "Partimos de perguntas, não de um modelo.",
@@ -159,6 +185,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "processo",
+    tom: "#ffb340",
+    icone: "funil",
     slide: 7,
     etiqueta: "Processo",
     titulo: "Limpar, comparar e transformar em critério.",
@@ -187,6 +215,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "achado",
+    tom: "#ff6b6b",
+    icone: "dispersao",
     slide: 8,
     etiqueta: "O achado",
     titulo: "Nenhuma característica isolada explica o sucesso.",
@@ -216,6 +246,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "modelo",
+    tom: "#3ba9ff",
+    icone: "curva",
     slide: 9,
     etiqueta: "O modelo",
     titulo: "Um modelo por estilo, e não um modelo só.",
@@ -255,6 +287,8 @@ export const SECOES: Secao[] = [
   },
   {
     id: "resultado",
+    tom: "#1ed760",
+    icone: "bandeira",
     slide: 10,
     etiqueta: "Resultado",
     titulo: "A análise virou um aplicativo.",

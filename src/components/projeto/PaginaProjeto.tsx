@@ -36,6 +36,7 @@ export function PaginaProjeto() {
   }, [transmitindo, atual, transmitir]);
 
   const indice = Math.max(0, SECOES.findIndex((secao) => secao.id === atual));
+  const tom = SECOES[indice]?.tom ?? "#1ed760";
   const progresso = ((indice + 1) / TOTAL_SECOES) * 100;
 
   function irPara(id: string) {
@@ -43,7 +44,11 @@ export function PaginaProjeto() {
   }
 
   return (
-    <main className="projeto">
+    <main className="projeto" style={{ "--tom": tom } as React.CSSProperties}>
+      {/* A cor da tela acompanha a seção. `background-color` transiciona
+          sozinho; um gradiente não transicionaria, então a forma do brilho vem
+          de uma máscara e só a cor muda. */}
+      <div className="projeto-tom" aria-hidden="true" />
       {/* Trilha de progresso e índice por pontos: em celular o índice lateral
           não cabe, então ele vira uma coluna estreita de pontos na borda. */}
       <div className="projeto-barra" aria-hidden="true">

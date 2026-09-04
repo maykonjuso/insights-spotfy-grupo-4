@@ -3310,6 +3310,10 @@ p {
   inset: 0;
   z-index: 70;
   cursor: not-allowed;
+  /* impede o gesto de rolagem por cima do conteúdo sem tornar a página
+     não rolável: o espelho ainda precisa poder posicioná-la */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 @keyframes sobe-faixa {
@@ -3951,4 +3955,407 @@ p {
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
+}
+
+/* ==========================================================================
+   Apresentação: cor da tela, ícones animados e o brilho da IA
+   ========================================================================== */
+
+/* A cor acompanha a seção. `background-color` transiciona sozinho; um
+   gradiente não transicionaria, então a forma do brilho vem de uma máscara e
+   só a cor muda. */
+.projeto-tom {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--tom, var(--ac));
+  opacity: 0.15;
+  mask-image: radial-gradient(85% 55% at 50% 0, #000, transparent 78%);
+  -webkit-mask-image: radial-gradient(85% 55% at 50% 0, #000, transparent 78%);
+  pointer-events: none;
+  transition: background-color 0.9s ease;
+}
+
+.projeto-topo,
+.projeto-indice,
+.projeto-corpo {
+  position: relative;
+  z-index: 1;
+}
+
+.projeto-barra i {
+  background: linear-gradient(90deg, var(--tom, var(--ac)), var(--ac-2));
+  transition: transform 0.4s var(--e), background 0.9s ease;
+}
+
+.projeto-indice button.is-atual {
+  background: var(--tom, var(--ac));
+  color: #06120b;
+}
+
+.secao-etiqueta,
+.metrica strong,
+.jogo-licao b {
+  color: var(--tom, var(--ac-2));
+}
+
+.secao-titulo {
+  color: var(--txt);
+}
+
+.metrica {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tom, var(--ac)) 12%, transparent), var(--surface) 62%);
+  border-color: color-mix(in srgb, var(--tom, var(--ac)) 22%, var(--line));
+}
+
+.jogo {
+  border-color: color-mix(in srgb, var(--tom, var(--ac)) 32%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tom, var(--ac)) 11%, transparent), var(--surface) 60%);
+}
+
+.jogo-opcao.is-certa {
+  border-color: var(--tom, var(--ac));
+  background: color-mix(in srgb, var(--tom, var(--ac)) 18%, transparent);
+}
+
+/* ---------------- ícones das seções ---------------- */
+
+.secao-icone {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  margin-bottom: 18px;
+  border: 1px solid color-mix(in srgb, var(--tom, var(--ac)) 30%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--tom, var(--ac)) 10%, var(--surface));
+  color: var(--tom, var(--ac));
+  opacity: 0;
+  transform: translate3d(0, 16px, 0) scale(0.9);
+  transition: opacity 0.5s var(--e), transform 0.6s var(--e-mola);
+}
+
+.secao.is-dentro .secao-icone {
+  opacity: 1;
+  transform: none;
+}
+
+.ic {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.ic svg {
+  width: 40px;
+  height: 40px;
+  overflow: visible;
+}
+
+/* equalizador */
+.ic-onda {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ic-onda i {
+  width: 3px;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+  animation: ic-pulsa 900ms ease-in-out infinite alternate;
+}
+
+@keyframes ic-pulsa {
+  from {
+    transform: scaleY(0.25);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* pontos que aparecem e somem, como palpite solto */
+.ic-duvida {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.ic-duvida i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: ic-pisca 2.2s ease-in-out infinite;
+}
+
+@keyframes ic-pisca {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* quatro passos que se acendem em sequência */
+.ic-passos {
+  display: grid;
+  gap: 4px;
+  width: 40px;
+}
+
+.ic-passos i {
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.25;
+  transform-origin: left center;
+  animation: ic-acende 2.6s ease-in-out infinite;
+}
+
+@keyframes ic-acende {
+  0%,
+  70%,
+  100% {
+    opacity: 0.22;
+    transform: scaleX(0.55);
+  }
+  20%,
+  45% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* dois cartões que se alternam */
+.ic-duplo {
+  display: flex;
+  gap: 6px;
+}
+
+.ic-duplo i {
+  width: 16px;
+  height: 32px;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  animation: ic-troca 2.4s ease-in-out infinite alternate;
+}
+
+.ic-duplo i:last-child {
+  animation-delay: 1.2s;
+}
+
+@keyframes ic-troca {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* alvo: anéis que fecham no centro */
+.ic-alvo .ic-anel {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  opacity: 0.35;
+  transform-origin: center;
+  animation: ic-fecha 2.6s ease-in-out infinite;
+}
+
+.ic-alvo .ic-anel.is-2 {
+  animation-delay: 400ms;
+}
+
+.ic-alvo .ic-centro {
+  fill: currentColor;
+}
+
+@keyframes ic-fecha {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1.05);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(0.9);
+  }
+}
+
+/* interrogações que sobem */
+.ic-perguntas {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.ic-perguntas i {
+  color: currentColor;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 800;
+  animation: ic-sobe 2.4s ease-in-out infinite;
+}
+
+@keyframes ic-sobe {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(4px);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+/* funil com gotas caindo */
+.ic-funil {
+  position: relative;
+}
+
+.ic-funil .ic-traco {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.ic-funil i {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: ic-cai 2.2s linear infinite;
+}
+
+@keyframes ic-cai {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 34px) scale(0.35);
+  }
+}
+
+/* dispersão: pontos que aparecem em ordem */
+.ic-dispersao circle {
+  fill: currentColor;
+  transform-origin: center;
+  animation: ic-ponto 3s ease-in-out infinite;
+}
+
+@keyframes ic-ponto {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.6);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* curva do posterior se desenhando */
+.ic-curva .ic-faixa {
+  fill: currentColor;
+  opacity: 0.16;
+}
+
+.ic-curva .ic-linha {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-dasharray: 120;
+  animation: ic-desenha 3.4s ease-in-out infinite;
+}
+
+@keyframes ic-desenha {
+  0% {
+    stroke-dashoffset: 120;
+  }
+  55%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* bandeira tremulando */
+.ic-bandeira .ic-traco {
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.ic-bandeira .ic-pano {
+  fill: currentColor;
+  transform-origin: 16px 22px;
+  animation: ic-treme 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes ic-treme {
+  from {
+    transform: skewY(-3deg) scaleX(0.94);
+  }
+  to {
+    transform: skewY(3deg) scaleX(1);
+  }
+}
+
+/* ---------------- brilho da IA junto do texto ---------------- */
+
+.explicacao-pronta {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.pensando-brilhos.is-pequeno {
+  width: 34px;
+  height: 34px;
+  margin-top: 2px;
+}
+
+.pensando-brilhos.is-pequeno .brilho-grande {
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+}
+
+.pensando-brilhos.is-pequeno .brilho-medio {
+  top: -1px;
+  right: 0;
+  width: 13px;
+  height: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .projeto-tom {
+    transition: none;
+  }
 }

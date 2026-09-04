@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Secao } from "@/lib/projeto-conteudo";
 import { Revelar } from "../ui/Revelar";
+import { IconeSecao } from "./IconeSecao";
 import { Minijogo } from "./Minijogo";
 
 type SecaoProjetoProps = {
@@ -45,6 +46,7 @@ export function SecaoProjeto({ secao, total, onVisivel }: SecaoProjetoProps) {
       className={`secao ${entrou ? "is-dentro" : ""}`}
       id={secao.id}
       ref={alvo}
+      style={{ "--tom": secao.tom } as CSSProperties}
       aria-labelledby={`${secao.id}-titulo`}
     >
       <div className="secao-topo">
@@ -54,6 +56,8 @@ export function SecaoProjeto({ secao, total, onVisivel }: SecaoProjetoProps) {
           <i>/{String(total).padStart(2, "0")}</i>
         </span>
       </div>
+
+      <IconeSecao tipo={secao.icone} />
 
       <h2 id={`${secao.id}-titulo`} className="secao-titulo">
         {secao.titulo}

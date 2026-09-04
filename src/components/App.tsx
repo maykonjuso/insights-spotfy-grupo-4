@@ -10,7 +10,7 @@ import { BuscarMusica, type Faixa } from "./telas/BuscarMusica";
 import { EnviarMusica } from "./telas/EnviarMusica";
 import { Inicio } from "./telas/Inicio";
 import { Resultado } from "./telas/Resultado";
-import { useApresentacao } from "./apresentacao/Apresentacao";
+import { useApresentacao, useEstadoEspelhado } from "./apresentacao/Apresentacao";
 import { TopBar } from "./ui/TopBar";
 
 type Tela = "abertura" | "inicio" | "enviar" | "buscar" | "analisando" | "resultado";
@@ -40,6 +40,15 @@ export function App() {
   // publicado nem aplicado.
   const { seguindo, transmitindo, transmitir } = useApresentacao();
 
+  // A música é analisada no navegador de quem apresenta: quem acompanha não
+  // tem como tê-la. Sem transmitir a leitura junto, a tela de resultado
+  // renderizava vazia do outro lado, e o efeito era a tela ficar preta.
+  //
+  // Tudo em `Musica` é serializável. A única parte que não atravessa é a URL
+  // de um arquivo enviado, que é um `blob:` válido só no navegador que o criou;
+  // nesse caso o player chega desabilitado em vez de quebrado.
+  const [musicaEspelhada, setMusicaEspelhada] = useEstadoEspelhado<Musica | null>("app:musica", null);
+
   // O trabalho de rede comeca junto com a animacao de abertura, nao depois
   // dela: quando a tela de busca aparece, a lista ja esta em memoria.
   useEffect(() => {
@@ -59,6 +68,22 @@ export function App() {
     if (!transmitindo) return;
     transmitir({ rota: "/", tela });
   }, [transmitindo, tela, transmitir]);
+
+  // transmitindo: publica a leitura da música, para quem acompanha ver a mesma
+  useEffect(() => {
+    if (!transmitindo) return;
+    if (!musica) {
+      setMusicaEspelhada(null);
+      return;
+    }
+    const url = musica.audioUrl?.startsWith("blob:") ? undefined : musica.audioUrl;
+    setMusicaEspelhada({ ...musica, audioUrl: url });
+    // setMusicaEspelhada muda a cada render do provedor; seguir a música basta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transmitindo, musica]);
+
+  // acompanhando: a música vem de quem apresenta
+  const musicaNaTela = seguindo ? musicaEspelhada : musica;
 
   const irPara = useCallback((proxima: Tela) => {
     stopPlayback();
@@ -157,7 +182,17 @@ export function App() {
 
         {tela === "analisando" ? <Analisando etapa={etapa} nome={nomeEmAnalise} /> : null}
 
-        {tela === "resultado" && musica ? <Resultado musica={musica} onRecomecar={recomecar} /> : null}
+        {tela === "resultado" && musicaNaTela ? (
+          <Resultado musica={musicaNaTela} onRecomecar={recomecar} />
+        ) : null}
+
+        {/* acompanhando e a leitura ainda não chegou: um aviso, nunca uma tela
+            preta */}
+        {tela === "resultado" && !musicaNaTela ? (
+          <section className="tela">
+            <p className="aviso">Recebendo a análise de quem está apresentando…</p>
+          </section>
+        ) : null}
       </div>
     </main>
   );
