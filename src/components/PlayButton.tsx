@@ -9,6 +9,26 @@ type PlayButtonProps = {
   size?: "sm" | "lg";
 };
 
+// O triangulo fica levemente deslocado para a direita: num circulo, o centro
+// optico de um triangulo nao coincide com o centro geometrico, e sem esse
+// empurrao ele parece torto para a esquerda.
+function Triangulo() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9.2 5.6c0-.8.9-1.3 1.6-.9l8.1 5.4c.6.4.6 1.4 0 1.8l-8.1 5.4c-.7.4-1.6-.1-1.6-.9z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Pausa() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="8" y="5.5" width="3.2" height="13" rx="1.3" fill="currentColor" />
+      <rect x="12.8" y="5.5" width="3.2" height="13" rx="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function PlayButton({ sourceId, url, title, size = "sm" }: PlayButtonProps) {
   const state = usePlayerState();
   const isActive = state.sourceId === sourceId && state.isPlaying;
@@ -20,13 +40,10 @@ export function PlayButton({ sourceId, url, title, size = "sm" }: PlayButtonProp
       <button
         type="button"
         className={`play-button ${size} is-disabled`}
-        title="Áudio ainda indisponível para esta faixa."
         aria-label={`Áudio indisponível para ${title}`}
         disabled
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 5.5v13l11-6.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
+        <Triangulo />
       </button>
     );
   }
@@ -35,19 +52,13 @@ export function PlayButton({ sourceId, url, title, size = "sm" }: PlayButtonProp
     <button
       type="button"
       className={`play-button ${size} ${isActive ? "is-playing" : ""}`}
-      aria-label={isActive ? `Pausar ${title}` : `Ouvir prévia de ${title}`}
+      aria-label={isActive ? `Pausar ${title}` : `Ouvir ${title}`}
       onClick={(event) => {
         event.stopPropagation();
         void togglePlayback(sourceId, url);
       }}
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        {isActive ? (
-          <path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" />
-        ) : (
-          <path d="M8 5.5v13l11-6.5z" fill="currentColor" />
-        )}
-      </svg>
+      {isActive ? <Pausa /> : <Triangulo />}
     </button>
   );
 }

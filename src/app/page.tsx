@@ -1,5 +1,5 @@
-import { SpotifyAnalyzer } from "@/components/SpotifyAnalyzer";
+import { App } from "@/components/App";
 
 export default function Home() {
-  return <SpotifyAnalyzer />;
+  return <App />;
 }

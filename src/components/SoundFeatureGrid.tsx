@@ -6,10 +6,12 @@ type SoundFeatureGridProps = {
   groups: SoundFeatureGroup[];
 };
 
+// O usuario nao precisa saber qual motor mediu o que; precisa saber no que
+// pode confiar. Duas palavras dao conta: medido ou estimado.
 const ORIGIN_LABEL = {
-  essentia: "Essentia",
-  dsp: "DSP próprio",
-  estimativa: "estimativa",
+  essentia: "medido",
+  dsp: "medido",
+  estimativa: "estimado",
 } as const;
 
 export function SoundFeatureGrid({ groups }: SoundFeatureGridProps) {

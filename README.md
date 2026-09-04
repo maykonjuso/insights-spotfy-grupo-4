@@ -112,118 +112,93 @@ cp .env.local.example .env.local   # todas as chaves sao opcionais (ver o arquiv
 npm run dev                        # http://localhost:3000
 ```
 
-### O caminho principal: "sua música tem cara de hit?"
+### As telas
+
+Uma tela por pergunta, resposta antes do detalhe, ação principal sempre na
+metade de baixo (onde o polegar alcança).
 
 ```
-arquivo de audio
+Abertura ─ Início ─┬─ Procurar no Spotify ─┐
+                   └─ Enviar a minha música ┴─ Analisando ─ Resultado
+```
+
+A abertura não é enfeite: ela dura pouco mais de dois segundos e, enquanto roda,
+o app já busca as músicas do primeiro estilo e a lista de gêneros do modelo
+(`src/lib/catalogo.ts`). Quando a tela de busca aparece, a lista está em
+memória e não há esqueleto de carregamento. Tocar num chip de estilo também
+adianta a busca dele.
+
+| Arquivo | Papel |
+|---|---|
+| `src/components/App.tsx` | máquina de estados das telas e navegação |
+| `src/components/telas/Abertura.tsx` | apresentação animada que cobre o carregamento inicial |
+| `src/components/telas/Inicio.tsx` | dois caminhos, um toque cada |
+| `src/lib/catalogo.ts` | cache de músicas por estilo, preenchido durante a abertura |
+| `src/components/telas/EnviarMusica.tsx` | arquivo do aparelho |
+| `src/components/telas/BuscarMusica.tsx` | estilos e lista do Spotify na mesma tela |
+| `src/components/telas/Analisando.tsx` | espera com passos e curiosidades do estudo |
+| `src/components/telas/Resultado.tsx` | nota, explicação e detalhe sob demanda |
+| `src/components/ui/` | barra do topo, folha inferior e bloco de revelar |
+
+Os dois caminhos de entrada terminam no **mesmo** objeto `Musica`
+(`src/lib/analisar.ts`), então existe uma única tela de resultado. Quem usa não
+aprende duas interfaces.
+
+### Do áudio até a nota
+
+```
+música (arquivo ou trecho do Spotify)
    -> decodifica e reamostra para 22,05 kHz mono   (WebAudio, no aparelho)
    -> Essentia WASM + DSP proprio                  (BPM, tom, energia, espectro)
-   -> classificador GTZAN                          (genero provavel)
+   -> classificador GTZAN                          (estilo provavel)
    -> src/lib/model-bridge.ts                      (11 features do modelo)
    -> POST /api/predict                            (modelo k=11, 1.000 amostras)
-   -> score 0-100 + intervalo de credibilidade 94%
+   -> nota 0-100 + intervalo de credibilidade 94%
 ```
 
-`src/lib/model-bridge.ts` é a peça que liga as duas metades: converte o que o navegador
-consegue medir no vetor exato que o modelo espera (`artifacts/feature_names.json`) e
-traduz os 10 gêneros do GTZAN para os 107 gêneros que o modelo conhece. Nenhum áudio sai
-do aparelho — só as 11 medidas resultantes vão ao servidor.
+`src/lib/model-bridge.ts` é a peça que liga as duas metades do projeto:
+converte o que o navegador consegue medir no vetor exato que o modelo espera
+(`artifacts/feature_names.json`) e traduz os 10 estilos do GTZAN para os 107 que
+o modelo conhece. Nenhum áudio sai do aparelho: só as 11 medidas vão ao servidor.
 
-Na tela de resultado dá para:
+Na tela de resultado dá para trocar o estilo (folha inferior com os 107),
+simular outra versão da faixa com os sliders, e ver a mesma música pontuada em
+doze estilos de uma vez. Cada gesto refaz a conta em cerca de 10 ms.
 
-- **trocar o gênero da análise** (chips do classificador ou os 107 do modelo) e ver o score
-  recalcular — os coeficientes são por gênero, então a mesma faixa vale scores bem
-  diferentes dependendo de onde é lançada;
-- **simular outra versão da faixa** com os sliders ("e se o andamento fosse 130?"), que
-  batem em `/api/predict` a cada arrasto (≈10 ms por consulta);
-- **ver a corrida de gêneros**: a mesma música pontuada em doze gêneros de uma vez.
+### Decisões de interface
 
-Toda a animação é CSS em `transform`/`opacity`, sem biblioteca de motion, e desligada em
-`prefers-reduced-motion`. O primeiro carregamento é de ~124 kB de JS; a Essentia (2 MB de
-WASM) só é baixada quando o usuário escolhe um arquivo.
+Vieram das skills `mobile-principles` e `apple-design` (HIG), instaladas em
+`.agents/skills/`:
 
-### O caminho secundário: explorar o catálogo do Spotify
+- alvo de toque nunca abaixo de 48px, com 10px de folga entre vizinhos;
+- nenhuma pista de interface depende de `:hover`, que vive num
+  `@media (hover: hover) and (pointer: fine)` no fim do CSS;
+- ação principal na zona do polegar, presa no rodapé com `env(safe-area-inset-bottom)`;
+- detalhe sob demanda: a nota aparece inteira, o resto abre se a pessoa quiser;
+- a espera mostra progresso e ensina algo do estudo, em vez de só girar;
+- texto em português comum, verbo no botão, sem sigla nem campo vazio na tela;
+- só `transform` e `opacity` animam, e tudo cede a `prefers-reduced-motion`.
 
-Precisa de `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`. O que a tela faz:
-
-- **Ouvir a faixa exibida** — o painel de análise embute o player oficial do Spotify (faixa
-  inteira para quem está logado, prévia para os demais) e, quando existe prévia de 30 s,
-  também um player próprio com barra de progresso.
-- **Escanear a faixa do Spotify** — o botão "Escanear áudio da faixa" baixa a prévia pela
-  rota `/api/preview/[id]`, decodifica no navegador e devolve gênero, tom, BPM e
-  dançabilidade.
-- **Enviar músicas para classificação** — arraste um ou vários arquivos (MP3, WAV, M4A,
-  OGG, FLAC). Cada faixa é tocada localmente e analisada por inteiro.
-
-### De onde vem o áudio das faixas do Spotify
-
-A API do Spotify parou de preencher `preview_url` para credenciais criadas depois de
-nov/2024 — sem isso não há áudio para analisar, só metadados. `src/lib/preview-source.ts`
-resolve a prévia em cascata: `preview_url` do Spotify → busca pública do Deezer → busca
-pública da Apple, sempre casando artista **e** título normalizados antes de aceitar o
-resultado. A rota `/api/preview/[id]` serve esse mp3 na mesma origem (evita CORS) e a
-interface só mostra o botão de scan quando o servidor confirma que há áudio; caso
-contrário explica que a faixa só pode ser avaliada por metadados.
-
-### Análise de áudio no navegador
-
-Duas engines, cada uma no que faz melhor:
-
-- **Essentia (WebAssembly)** — `essentia.js` roda `RhythmExtractor2013`, `KeyExtractor`,
-  `Danceability` e `DynamicComplexity`, os mesmos algoritmos de
-  `scripts/classificar_genero.py`, então BPM, tom e dançabilidade da tela batem com o
-  pipeline offline. O binário é copiado de `node_modules` para `public/essentia/` no
-  `prebuild`/`predev`.
-- **Classificador de gênero próprio** — `src/lib/audio-features.ts` extrai 70 descritores
-  por janela de 30 s (20 MFCC média/desvio, 12 chroma, 7 bandas de contraste espectral,
-  centroide, rolloff, largura de banda, ZCR, RMS e andamento por autocorrelação da
-  envoltória de onsets). Faixas longas viram até 3 janelas e as probabilidades são médias.
-
-A tela lista todas as features em três blocos: **medidas da Essentia** (BPM e confiança,
-tom, modo, força do tom, dançabilidade, loudness, complexidade dinâmica), **descritores
-espectrais** do extrator próprio (energia/RMS, centroide, rolloff 85%, largura de banda,
-cruzamentos por zero, planicidade, contraste espectral, pico) e **estimativas**
-(acústica, valência, fala, instrumental e ao vivo), estas últimas marcadas como
-heurísticas — o Spotify não publica mais essas features e elas não são medíveis
-diretamente. `instrumentalness` e `liveness` entram porque o modelo k=11 as exige; são as
-duas mais frágeis da leitura e a interface as marca como tal. `time_signature` fica de
-fora por não haver sinal defensável e por não entrar no modelo.
-
-Tudo isso roda num Web Worker (`src/workers/audio-analysis.worker.ts`), então a interface
-não trava durante os segundos de processamento; se o worker não subir, a análise cai para
-a thread principal.
-
-O ponto do desenho: o **mesmo** código TypeScript extrai as features no treino e na
-inferência, o que elimina a divergência clássica de treinar com uma implementação (librosa)
-e inferir com outra.
-
-```bash
-# 1. extrai as features dos 1.000 clipes do GTZAN com o extrator do browser (~7 min)
-npm run features:gtzan
-
-# 2. treina a regressão logística e exporta src/lib/genre-model.ts
-.venv/bin/python scripts/treinar_classificador_web.py
-```
-
-Resultado atual: **63,5% de acurácia em validação cruzada 5x** (±2,9) em 10 gêneros, contra
-10% do acaso; 73,6% no holdout de 25%. O modelo exportado é só escalonador + matriz de
-pesos avaliada com um softmax — sem runtime de ML no cliente e sem enviar áudio a servidor
-algum. `scripts/classificar_genero.py` continua sendo a referência offline mais completa
-(librosa + Essentia nativos, com Random Forest).
+Sem biblioteca de animação: o primeiro carregamento é de ~123 kB de JS, e a
+Essentia (2 MB de WASM) só é baixada quando a pessoa escolhe uma música.
 
 ### Rotas da API
 
 | Rota | O que faz |
 |---|---|
 | `POST /api/predict` | Pontua um vetor de 11 features em até 24 gêneros de uma vez. Sem LLM, ~10 ms. É o que sustenta os sliders e a corrida de gêneros. |
-| `POST /api/diagnose` | Mesmo score, mais a explicação em PT-BR gerada por LLM (precisa de `OPENROUTER_API_KEY`; sem ela devolve o score e avisa). |
+| `POST /api/diagnose` | Mesma nota, mais a explicação em PT-BR gerada por LLM. Devolve `explicacao_status` (`ok`, `sem-chave`, `chave-recusada`, `sem-credito`, `limite`, `falhou`) para a tela dizer o que resolver. Precisa de uma `OPENROUTER_API_KEY` de verdade em `.env.local`: o valor de exemplo passa em qualquer checagem de "variável existe" e só falha depois, com 401. |
 | `GET /api/generos` | Os 107 gêneros que o modelo k=11 conhece. |
 | `GET /api/genres` | Gêneros sugeridos para a busca no catálogo do Spotify (outra lista, outro propósito). |
 | `GET /api/tracks`, `/api/tracks/[id]`, `/api/preview/[id]` | Busca, detalhe e prévia de áudio do catálogo. |
 
 O modelo carrega `artifacts/k11_posterior_samples.json.gz` (12 MB, 1.000 amostras do
-posterior) uma vez por processo e o mantém em memória — por isso a pontuação roda no
-servidor e não no cliente.
+posterior) uma vez por processo e o mantém em memória, por isso a pontuação roda no
+servidor e não no cliente. O carregamento é **preguiçoso**: se acontecesse no import do
+módulo, a etapa `Collecting page data` do `next build` importaria todas as rotas em
+vários workers ao mesmo tempo, cada um expandindo mais de um milhão de números, e o
+build morria com erros enganosos (`Cannot find module './331.js'`, `/_document` não
+encontrado). Ver `src/lib/model/artifacts.ts`.
 
 > `essentia.js` é distribuída sob **AGPL-3.0**: se a aplicação for publicada, a licença
 > exige disponibilizar o código-fonte do serviço.

@@ -23,6 +23,9 @@ export type SoundFeatureInput = {
   descriptors: EssentiaDescriptors | null;
   durationMs: number;
   clippedSamples?: number;
+  /** "Duração" por padrão; a prévia de 30s usa "Trecho analisado" para não
+   * competir com a duração real da faixa mostrada logo acima. */
+  rotuloDuracao?: string;
 };
 
 function clamp(value: number, min = 0, max = 1) {
@@ -91,12 +94,13 @@ export function buildSoundFeatures({
   descriptors,
   durationMs,
   clippedSamples,
+  rotuloDuracao,
 }: SoundFeatureInput): SoundFeatureGroup[] {
   const groups: SoundFeatureGroup[] = [];
 
   if (descriptors) {
     groups.push({
-      title: "Medidas da Essentia",
+      title: "Ritmo e tom",
       features: [
         {
           id: "tempo",
@@ -104,15 +108,15 @@ export function buildSoundFeatures({
           display: `${Math.round(descriptors.bpm)} bpm`,
           bar: clamp((descriptors.bpm - 40) / 180),
           origin: "essentia",
-          hint: "RhythmExtractor2013: batidas por minuto estimadas pelo método multifeature.",
+          hint: "Batidas por minuto da música.",
         },
         {
           id: "bpmConfidence",
-          label: "Confiança do andamento",
+          label: "Certeza do andamento",
           display: `${descriptors.bpmConfidence.toFixed(1)} / 5.3`,
           bar: clamp(descriptors.bpmConfidence / 5.3),
           origin: "essentia",
-          hint: "Concordância entre os estimadores de batida; abaixo de 1.5 o BPM é pouco confiável.",
+          hint: "O quanto a batida ficou clara na medição. Valores baixos pedem desconfiança no andamento.",
         },
         {
           id: "key",
@@ -120,15 +124,15 @@ export function buildSoundFeatures({
           display: `${descriptors.key} ${MODE_LABEL[descriptors.scale] || descriptors.scale}`,
           bar: null,
           origin: "essentia",
-          hint: "KeyExtractor: tonalidade e modo (equivalentes a key e mode do Spotify).",
+          hint: "A tonalidade da música e se ela é maior ou menor.",
         },
         {
           id: "keyStrength",
-          label: "Força do tom",
+          label: "Clareza do tom",
           display: percent(descriptors.keyStrength),
           bar: clamp(descriptors.keyStrength),
           origin: "essentia",
-          hint: "Quanto o perfil de croma da faixa adere ao tom detectado.",
+          hint: "O quanto a música se firma nesse tom.",
         },
         {
           id: "danceability",
@@ -136,7 +140,7 @@ export function buildSoundFeatures({
           display: percent(descriptors.danceability),
           bar: clamp(descriptors.danceability),
           origin: "essentia",
-          hint: "Danceability da Essentia (0–3 na escala original), normalizada para 0–100%.",
+          hint: "O quanto a música convida a dançar.",
         },
         {
           id: "loudness",
@@ -144,15 +148,15 @@ export function buildSoundFeatures({
           display: `${Math.round(descriptors.loudnessDb)} dB`,
           bar: clamp((descriptors.loudnessDb + 60) / 60),
           origin: "essentia",
-          hint: "Loudness médio em dB, no mesmo espírito da feature loudness do Spotify.",
+          hint: "O volume médio da música.",
         },
         {
           id: "dynamicComplexity",
-          label: "Complexidade dinâmica",
+          label: "Variação de volume",
           display: `${descriptors.dynamicComplexity.toFixed(1)} dB`,
           bar: clamp(descriptors.dynamicComplexity / 10),
           origin: "essentia",
-          hint: "Variação de loudness ao longo da faixa; valores baixos indicam master comprimido.",
+          hint: "A diferença entre as partes mais altas e mais baixas. Valores baixos indicam mixagem muito comprimida.",
         },
       ],
     });
@@ -160,7 +164,7 @@ export function buildSoundFeatures({
 
   if (summary) {
     groups.push({
-      title: "Descritores espectrais",
+      title: "Textura do som",
       features: [
         {
           id: "energy",
@@ -168,63 +172,63 @@ export function buildSoundFeatures({
           display: percent(summary.rms / 0.28),
           bar: clamp(summary.rms / 0.28),
           origin: "dsp",
-          hint: "RMS médio normalizado — análogo direto da feature energy.",
+          hint: "O quanto a música soa cheia e intensa.",
         },
         {
           id: "centroid",
-          label: "Brilho (centroide)",
+          label: "Brilho",
           display: hz(summary.centroid),
           bar: clamp(summary.centroid / 5000),
           origin: "dsp",
-          hint: "Centro de massa do espectro: quanto maior, mais brilhante o timbre.",
+          hint: "Quanto maior, mais brilhante o som.",
         },
         {
           id: "rolloff",
-          label: "Rolloff 85%",
+          label: "Agudos",
           display: hz(summary.rolloff),
           bar: clamp(summary.rolloff / 9000),
           origin: "dsp",
-          hint: "Frequência abaixo da qual está 85% da energia espectral.",
+          hint: "Até onde a música vai nos agudos.",
         },
         {
           id: "bandwidth",
-          label: "Largura de banda",
+          label: "Variedade de frequências",
           display: hz(summary.bandwidth),
           bar: clamp(summary.bandwidth / 4000),
           origin: "dsp",
-          hint: "Dispersão do espectro em torno do centroide.",
+          hint: "O quanto o som ocupa graves, médios e agudos ao mesmo tempo.",
         },
         {
           id: "zcr",
-          label: "Cruzamentos por zero",
+          label: "Aspereza",
           display: percent(summary.zcr / 0.3),
           bar: clamp(summary.zcr / 0.3),
           origin: "dsp",
-          hint: "Taxa de troca de sinal da forma de onda; sobe com percussão, distorção e voz.",
+          hint: "Sobe com percussão, distorção e voz.",
         },
         {
           id: "flatness",
-          label: "Planicidade espectral",
+          label: "Chiado",
           display: percent(summary.flatness / 0.5),
           bar: clamp(summary.flatness / 0.5),
           origin: "dsp",
-          hint: "Perto de 0 o som é tonal; perto de 100% se aproxima de ruído.",
+          hint: "Perto de zero o som é limpo. Perto de cem já é quase chiado.",
         },
         {
           id: "contrast",
-          label: "Contraste espectral",
+          label: "Contraste",
           display: summary.contrastMean.toFixed(2),
           bar: clamp(summary.contrastMean / 6),
           origin: "dsp",
-          hint: "Diferença média entre picos e vales por banda de oitava.",
+          hint: "A diferença entre as partes cheias e as partes vazias do som.",
         },
         {
           id: "peak",
-          label: "Pico",
+          label: "Pico de volume",
           display: percent(summary.peak),
           bar: clamp(summary.peak),
           origin: "dsp",
-          hint: "Amplitude máxima da forma de onda; perto de 100% indica risco de clipping.",
+          hint: "Perto de cem por cento o áudio corre risco de estourar.",
         },
       ],
     });
@@ -233,47 +237,47 @@ export function buildSoundFeatures({
   if (summary) {
     groups.push({
       title: "Estimativas",
-      note: "O Spotify não publica mais estas features e elas não são medíveis diretamente; os valores abaixo são heurísticas sobre os descritores acima, úteis para comparar faixas entre si.",
+      note: "Estes valores não dá para medir direto no áudio, então são um chute com base nas medidas acima. Servem para comparar músicas entre si, não como número exato.",
       features: [
         {
           id: "acousticness",
-          label: "Acústica",
+          label: "Som acústico",
           display: percent(estimateAcousticness(summary, descriptors)),
           bar: estimateAcousticness(summary, descriptors),
           origin: "estimativa",
-          hint: "Sobe com dinâmica preservada e cai com brilho e ruído espectral.",
+          hint: "Sobe quando o som lembra instrumentos acústicos em vez de produção eletrônica.",
         },
         {
           id: "valence",
-          label: "Valência",
+          label: "Clima alegre",
           display: percent(estimateValence(summary, descriptors)),
           bar: estimateValence(summary, descriptors),
           origin: "estimativa",
-          hint: "Combina modo maior/menor, andamento, brilho e dançabilidade.",
+          hint: "Junta tom maior ou menor, andamento e brilho para adivinhar o clima.",
         },
         {
           id: "speechiness",
-          label: "Fala",
+          label: "Presença de voz falada",
           display: percent(estimateSpeechiness(summary)),
           bar: estimateSpeechiness(summary),
           origin: "estimativa",
-          hint: "Combina cruzamentos por zero, planicidade espectral e largura de banda.",
+          hint: "Tenta separar canto de fala. Sobe em rap e em faixas muito faladas.",
         },
         {
           id: "instrumentalness",
-          label: "Instrumental",
+          label: "Só instrumentos",
           display: percent(estimateInstrumentalness(summary, descriptors)),
           bar: estimateInstrumentalness(summary, descriptors),
           origin: "estimativa",
-          hint: "Cai com presenca de fala e brilho, sobe com tonalidade estavel. Estimativa fraca.",
+          hint: "Chute de o quanto a faixa é instrumental. É uma das medidas mais frágeis daqui.",
         },
         {
           id: "liveness",
-          label: "Ao vivo",
+          label: "Cara de show ao vivo",
           display: percent(estimateLiveness(summary, descriptors)),
           bar: estimateLiveness(summary, descriptors),
           origin: "estimativa",
-          hint: "Sobe com dinamica aberta e ruido de sala. Estimativa fraca.",
+          hint: "Chute de gravação ao vivo, pelo ruído de ambiente. É uma das medidas mais frágeis daqui.",
         },
       ],
     });
@@ -282,26 +286,26 @@ export function buildSoundFeatures({
   const basicos: SoundFeature[] = [
     {
       id: "duration",
-      label: "Duração",
+      label: rotuloDuracao || "Duração",
       display: duration(durationMs),
       bar: null,
       origin: "dsp",
-      hint: "Equivalente a duration_ms.",
+      hint: "Quanto tempo de áudio entrou na conta.",
     },
   ];
 
   if (typeof clippedSamples === "number") {
     basicos.push({
       id: "clipping",
-      label: "Amostras em clipping",
+      label: "Trechos estourados",
       display: String(clippedSamples),
       bar: null,
       origin: "dsp",
-      hint: "Amostras com amplitude ≥ 0,98; qualquer valor alto pede revisão do master.",
+      hint: "Pedaços em que o áudio passou do limite. Qualquer número alto pede revisão da mixagem.",
     });
   }
 
-  groups.push({ title: "Faixa", features: basicos });
+  groups.push({ title: "Sobre o áudio", features: basicos });
 
   return groups;
 }

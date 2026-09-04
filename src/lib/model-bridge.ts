@@ -42,7 +42,12 @@ export const FEATURE_META: FeatureMeta[] = [
   { key: "mode_bin", label: "Tom maior", origin: "essentia", min: 0, max: 1, step: 1, unit: "bool" },
 ];
 
-function clamp(value: number, min: number, max: number) {
+// Math.max(0, Math.min(1, NaN)) devolve NaN, entao um clamp comum deixa passar
+// medida invalida. A Essentia pode devolver NaN em bpm num trecho curto ou quase
+// mudo, e o modelo recusa o vetor inteiro com 400: uma unica medida ruim
+// derrubava a leitura toda. `padrao` e o valor usado quando nao ha medida.
+function clamp(value: number, min: number, max: number, padrao = min) {
+  if (!Number.isFinite(value)) return padrao;
   return Math.max(min, Math.min(max, value));
 }
 
@@ -64,29 +69,31 @@ export type BridgeInput = {
 export function toModelFeatures({ summary, descriptors, explicit = 0 }: BridgeInput): TrackFeatures | null {
   if (!summary) return null;
 
-  const rmsDb = 20 * Math.log10(Math.max(summary.rms, 1e-6));
-  const energia = clamp(summary.rms / 0.28, 0, 1);
+  const rmsDb = 20 * Math.log10(Math.max(Number.isFinite(summary.rms) ? summary.rms : 0, 1e-6));
+  const energia = clamp(summary.rms / 0.28, 0, 1, 0.5);
+  const andamento = clamp(descriptors?.bpm ?? summary.tempo, 40, 220, 110);
 
   // Sem a Essentia nao ha medida de dancabilidade; o substituto combina energia
   // com a distancia ate a faixa de andamento onde a maioria das faixas dancantes
   // vive (~118 bpm). Copiar a energia crua deixaria as duas barras identicas na
   // tela, o que pareceria defeito.
   const dancaEstimada = clamp(
-    0.3 + 0.4 * energia + 0.3 * (1 - Math.min(1, Math.abs(summary.tempo - 118) / 70)),
+    0.3 + 0.4 * energia + 0.3 * (1 - Math.min(1, Math.abs(andamento - 118) / 70)),
     0,
     1,
+    0.5,
   );
 
   return {
-    danceability: clamp(descriptors?.danceability ?? dancaEstimada, 0, 1),
+    danceability: clamp(descriptors?.danceability ?? dancaEstimada, 0, 1, 0.5),
     energy: energia,
-    loudness: clamp(descriptors?.loudnessDb ?? rmsDb, -60, 0),
-    speechiness: clamp(estimateSpeechiness(summary), 0, 1),
-    acousticness: clamp(estimateAcousticness(summary, descriptors), 0, 1),
-    instrumentalness: clamp(estimateInstrumentalness(summary, descriptors), 0, 1),
-    liveness: clamp(estimateLiveness(summary, descriptors), 0, 1),
-    valence: clamp(estimateValence(summary, descriptors), 0, 1),
-    tempo: clamp(descriptors?.bpm ?? summary.tempo, 0, 250),
+    loudness: clamp(descriptors?.loudnessDb ?? rmsDb, -60, 0, -12),
+    speechiness: clamp(estimateSpeechiness(summary), 0, 1, 0.1),
+    acousticness: clamp(estimateAcousticness(summary, descriptors), 0, 1, 0.4),
+    instrumentalness: clamp(estimateInstrumentalness(summary, descriptors), 0, 1, 0.2),
+    liveness: clamp(estimateLiveness(summary, descriptors), 0, 1, 0.2),
+    valence: clamp(estimateValence(summary, descriptors), 0, 1, 0.5),
+    tempo: andamento,
     explicit,
     mode_bin: descriptors?.scale === "minor" ? 0 : 1,
   };

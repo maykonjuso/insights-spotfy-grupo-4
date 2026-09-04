@@ -1,0 +1,138 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { analisarArquivo, analisarFaixa, ErroAmigavel, type EtapaAnalise, type Musica } from "@/lib/analisar";
+import { ESTILO_INICIAL, prefetch } from "@/lib/catalogo";
+import { stopPlayback } from "@/lib/preview-player";
+import { Abertura } from "./telas/Abertura";
+import { Analisando } from "./telas/Analisando";
+import { BuscarMusica, type Faixa } from "./telas/BuscarMusica";
+import { EnviarMusica } from "./telas/EnviarMusica";
+import { Inicio } from "./telas/Inicio";
+import { Resultado } from "./telas/Resultado";
+import { TopBar } from "./ui/TopBar";
+
+type Tela = "abertura" | "inicio" | "enviar" | "buscar" | "analisando" | "resultado";
+
+const TITULOS: Record<Tela, string> = {
+  abertura: "Popularity Lab",
+  inicio: "Popularity Lab",
+  enviar: "Enviar música",
+  buscar: "Procurar música",
+  analisando: "Analisando",
+  resultado: "Resultado",
+};
+
+export function App() {
+  const urlLocal = useRef<string | null>(null);
+
+  const [tela, setTela] = useState<Tela>("abertura");
+  const [voltarPara, setVoltarPara] = useState<Tela>("inicio");
+  const [etapa, setEtapa] = useState<EtapaAnalise>("abrindo");
+  const [nomeEmAnalise, setNomeEmAnalise] = useState("a música");
+  const [musica, setMusica] = useState<Musica | null>(null);
+  const [genero, setGenero] = useState(ESTILO_INICIAL);
+  const [erro, setErro] = useState<string | null>(null);
+
+  // O trabalho de rede comeca junto com a animacao de abertura, nao depois
+  // dela: quando a tela de busca aparece, a lista ja esta em memoria.
+  useEffect(() => {
+    prefetch(ESTILO_INICIAL);
+    void fetch("/api/generos").catch(() => {});
+  }, []);
+
+  const irPara = useCallback((proxima: Tela) => {
+    stopPlayback();
+    setTela(proxima);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, []);
+
+  function limparUrlLocal() {
+    if (urlLocal.current) URL.revokeObjectURL(urlLocal.current);
+    urlLocal.current = null;
+  }
+
+  async function rodar(origem: Tela, nome: string, tarefa: () => Promise<Musica>) {
+    setErro(null);
+    setVoltarPara(origem);
+    setNomeEmAnalise(nome);
+    setEtapa("abrindo");
+    irPara("analisando");
+
+    try {
+      const resultado = await tarefa();
+      limparUrlLocal();
+      if (resultado.audioUrl?.startsWith("blob:")) urlLocal.current = resultado.audioUrl;
+      setMusica(resultado);
+      irPara("resultado");
+    } catch (falha) {
+      setErro(
+        falha instanceof ErroAmigavel
+          ? falha.message
+          : "Algo deu errado no meio da análise. Tente de novo.",
+      );
+      irPara(origem);
+    }
+  }
+
+  function comArquivo(arquivo: File) {
+    void rodar("enviar", arquivo.name.replace(/\.[^.]+$/, ""), () => analisarArquivo(arquivo, setEtapa));
+  }
+
+  function comFaixa(faixa: Faixa) {
+    void rodar("buscar", faixa.name, () => analisarFaixa(faixa, genero, setEtapa));
+  }
+
+  function recomecar() {
+    limparUrlLocal();
+    setMusica(null);
+    setErro(null);
+    irPara("inicio");
+  }
+
+  const mostraTopo = tela !== "inicio" && tela !== "abertura";
+
+  return (
+    <main className={`app ${tela === "inicio" || tela === "abertura" ? "is-inicio" : ""}`}>
+      {mostraTopo ? (
+        <TopBar
+          titulo={TITULOS[tela]}
+          onVoltar={
+            tela === "analisando"
+              ? undefined
+              : () => {
+                  if (tela === "resultado") return irPara(voltarPara);
+                  recomecar();
+                }
+          }
+          rotuloVoltar={tela === "resultado" ? "Voltar e escolher outra música" : "Voltar para o início"}
+        />
+      ) : null}
+
+      <div className="troca" key={tela}>
+        {tela === "abertura" ? <Abertura onFim={() => setTela("inicio")} /> : null}
+
+        {tela === "inicio" ? (
+          <Inicio onEnviar={() => irPara("enviar")} onBuscar={() => irPara("buscar")} />
+        ) : null}
+
+        {tela === "enviar" ? <EnviarMusica onArquivo={comArquivo} erro={erro} /> : null}
+
+        {tela === "buscar" ? (
+          <>
+            {erro ? (
+              <p className="aviso is-erro" role="alert">
+                {erro}
+              </p>
+            ) : null}
+            <BuscarMusica genero={genero} onGenero={setGenero} onEscolher={comFaixa} />
+          </>
+        ) : null}
+
+        {tela === "analisando" ? <Analisando etapa={etapa} nome={nomeEmAnalise} /> : null}
+
+        {tela === "resultado" && musica ? <Resultado musica={musica} onRecomecar={recomecar} /> : null}
+      </div>
+    </main>
+  );
+}

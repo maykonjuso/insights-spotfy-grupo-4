@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "apple-design": {
+      "source": "dickwu/apple-design-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "8ef2407bb66c759c110a55102e26646795fdcf67e6d8a49f035ee2d25afcd91b"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "skillPath": "skills/find-skills/SKILL.md",
       "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+    },
+    "mobile-principles": {
+      "source": "athevon/genjutsu",
+      "sourceType": "github",
+      "skillPath": "skills/_jutsu/mobile-principles/SKILL.md",
+      "computedHash": "5606ff5ddedc7510b5ceb3cdafad057e355f347a948266f01c28537583231575"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

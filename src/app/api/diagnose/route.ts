@@ -33,14 +33,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       score: prediction.score,
       hdi_94: [prediction.hdi_lo, prediction.hdi_hi],
-      explicacao,
+      explicacao: explicacao.texto,
+      explicacao_status: explicacao.status,
       genero: parsed.data.genero,
       ms_per_call: ms,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     if (msg.includes('Unknown genre')) {
-      const { genero_cats } = await import('@/lib/model/artifacts');
+      const { getGeneroCats } = await import('@/lib/model/artifacts');
+      const genero_cats = getGeneroCats();
       return NextResponse.json(
         { error: msg, valid_generos: genero_cats },
         { status: 400 },

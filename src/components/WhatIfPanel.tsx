@@ -25,15 +25,9 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
   }
 
   return (
-    <section className="panel lab-whatif">
-      <div className="section-heading">
-        <p>Simulação</p>
-        <h2>E se a música fosse assim?</h2>
-      </div>
-
-      <p className="upload-note">
-        Arraste e o score é recalculado no mesmo modelo, ao vivo. É a resposta para &ldquo;e se eu subisse o
-        andamento?&rdquo; sem precisar regravar nada.
+    <section className="bloco">
+      <p className="bloco-nota">
+        Arraste e a nota se refaz na hora, sem precisar regravar nada.
       </p>
 
       <div className="slider-list">
@@ -86,7 +80,7 @@ export function WhatIfPanel({ features, base, onChange, onReset }: WhatIfPanelPr
       </div>
 
       {alterado ? (
-        <button type="button" className="upload-clear" onClick={onReset}>
+        <button type="button" className="btn-secundario" onClick={onReset}>
           Voltar à música original
         </button>
       ) : null}

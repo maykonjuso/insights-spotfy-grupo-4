@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (resultados.length === 0) {
-    const { genero_cats } = await import('@/lib/model/artifacts');
+    const { getGeneroCats } = await import('@/lib/model/artifacts');
+    const genero_cats = getGeneroCats();
     return NextResponse.json(
       { error: 'Nenhum gênero válido', desconhecidos, valid_generos: genero_cats },
       { status: 400 },

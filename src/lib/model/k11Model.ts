@@ -1,7 +1,12 @@
-import { feature_names, genero_cats, scaler, posteriorSamples } from './artifacts';
+import { getFeatureNames, getGeneroCats, getPosteriorSamples, getScaler } from './artifacts';
 import type { TrackFeatures, Prediction } from './types';
 
 export function predict(features: TrackFeatures, genero: string): Prediction {
+  const feature_names = getFeatureNames();
+  const genero_cats = getGeneroCats();
+  const scaler = getScaler();
+  const posteriorSamples = getPosteriorSamples();
+
   // Validar gênero
   const genero_idx = genero_cats.indexOf(genero);
   if (genero_idx === -1) {

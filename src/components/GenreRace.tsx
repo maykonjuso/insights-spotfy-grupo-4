@@ -17,15 +17,10 @@ export function GenreRace({ resultados, generoAtual, carregando, onEscolher }: G
   const teto = Math.max(40, ...resultados.map((item) => item.hdi_94[1]));
 
   return (
-    <section className="panel lab-race">
-      <div className="section-heading">
-        <p>Comparação</p>
-        <h2>Onde essa faixa iria melhor</h2>
-      </div>
-
-      <p className="upload-note">
-        O mesmo áudio, pontuado pelo modelo em cada gênero. Os coeficientes mudam por gênero, então a mesma
-        música vale scores diferentes dependendo de onde ela é lançada. Toque para trocar o gênero da análise.
+    <section className="bloco">
+      <p className="bloco-nota">
+        A mesma música vale notas diferentes em cada estilo, porque o público de cada um é outro. Toque num
+        estilo para refazer a conta com ele.
       </p>
 
       {carregando && resultados.length === 0 ? (

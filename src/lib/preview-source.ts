@@ -116,7 +116,7 @@ async function findOnDeezer(track: SpotifyTrack): Promise<Lookup> {
           match: {
             url: result.preview,
             source: "deezer",
-            label: `prévia de 30s via Deezer (${result.artist?.name} — ${result.title})`,
+            label: "Trecho de 30 segundos, via Deezer",
           },
           failed: false,
         };
@@ -151,7 +151,7 @@ async function findOnItunes(track: SpotifyTrack): Promise<Lookup> {
         match: {
           url: result.previewUrl,
           source: "itunes",
-          label: `prévia de 30s via Apple Music (${result.artistName} — ${result.trackName})`,
+          label: "Trecho de 30 segundos, via Apple Music",
         },
         failed: false,
       };
@@ -169,7 +169,7 @@ export async function resolvePreview(track: SpotifyTrack): Promise<PreviewMatch 
     const match: PreviewMatch = {
       url: track.preview_url,
       source: "spotify",
-      label: "prévia de 30s da API do Spotify",
+      label: "Trecho de 30 segundos, direto do Spotify",
     };
     cache.set(track.id, { value: match, expiresAt: Date.now() + TTL_HIT });
     return match;
