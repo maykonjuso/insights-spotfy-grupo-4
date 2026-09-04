@@ -22,6 +22,14 @@ export type Estado = {
   secao?: string;
   /** rolagem em fração de 0 a 1, para funcionar entre telas de tamanhos diferentes */
   rolagem: number;
+  /**
+   * Estado da interface de quem apresenta: acordeões abertos, estilo escolhido,
+   * posição dos sliders. Vai inteiro em toda publicação, e não como evento
+   * separado, por dois motivos: quem entra no meio da apresentação recebe a
+   * tela já do jeito certo, e uma mensagem perdida se conserta sozinha na
+   * repetição seguinte.
+   */
+  ui?: Record<string, unknown>;
   em: number;
 };
 

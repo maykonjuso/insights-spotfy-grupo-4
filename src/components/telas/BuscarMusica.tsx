@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useEstadoEspelhado } from "@/components/apresentacao/Apresentacao";
 import { carregar, chaveDeBusca, ESTILOS, jaTemos, prefetch, type Faixa } from "@/lib/catalogo";
 import { durationLabel } from "@/lib/insights";
 import { PlayButton } from "../PlayButton";
@@ -20,8 +21,9 @@ type BuscarMusicaProps = {
 export function BuscarMusica({ genero, onGenero, onEscolher }: BuscarMusicaProps) {
   const [busca, setBusca] = useState("");
   // chave da lista mostrada agora: um estilo, ou "q:<termo>" quando a pessoa
-  // procurou pelo nome da musica
-  const [chave, setChave] = useState(genero);
+  // procurou pelo nome da musica. Espelhada, para quem acompanha ver a mesma
+  // lista que quem apresenta escolheu.
+  const [chave, setChave] = useEstadoEspelhado("buscar:chave", genero);
 
   // o que a abertura ja trouxe aparece no primeiro quadro, sem esqueleto
   const prontas = jaTemos(chave);

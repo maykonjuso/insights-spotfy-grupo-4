@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEstadoEspelhado } from "@/components/apresentacao/Apresentacao";
 import { GENEROS_DESTAQUE } from "@/lib/model-bridge";
 import type { TrackFeatures } from "@/lib/model/types";
 
@@ -29,8 +30,9 @@ export function useVeredito(base: TrackFeatures, generoInicial: string) {
   const ultimaConsulta = useRef("");
   const jaExplicou = useRef(false);
 
-  const [genero, setGenero] = useState(generoInicial);
-  const [features, setFeatures] = useState<TrackFeatures>(base);
+  // estilo e sliders viajam para quem acompanha: mexer aqui muda a tela de lá
+  const [genero, setGenero] = useEstadoEspelhado("veredito:genero", generoInicial);
+  const [features, setFeatures] = useEstadoEspelhado<TrackFeatures>("veredito:features", base);
   const [corrida, setCorrida] = useState<ResultadoGenero[]>([]);
   const [exibicao, setExibicao] = useState<{ score: number; hdi: [number, number] } | null>(null);
   const [calculando, setCalculando] = useState(false);

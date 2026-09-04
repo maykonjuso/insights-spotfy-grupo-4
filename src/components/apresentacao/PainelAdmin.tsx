@@ -69,7 +69,6 @@ export function PainelAdmin() {
       transmitir({
         rota: proximoAlvo === "landing" ? "/projeto" : "/",
         secao: proximoAlvo === "landing" ? proximaSecao : undefined,
-        rolagem: 0,
       });
     },
     [transmitindo, transmitir, nome, foto, secao, alvo],

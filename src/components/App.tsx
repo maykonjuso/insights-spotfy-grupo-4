@@ -57,7 +57,7 @@ export function App() {
   // transmitindo: publica a tela em que estou
   useEffect(() => {
     if (!transmitindo) return;
-    transmitir({ rota: "/", tela, rolagem: 0 });
+    transmitir({ rota: "/", tela });
   }, [transmitindo, tela, transmitir]);
 
   const irPara = useCallback((proxima: Tela) => {

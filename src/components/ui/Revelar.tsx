@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEstadoEspelhado } from "../apresentacao/Apresentacao";
 
 type RevelarProps = {
   titulo: string;
@@ -16,7 +17,9 @@ const DURACAO = 320;
 // cara; tudo que e aprofundamento fica fechado, com um resumo de uma linha
 // dizendo o que tem dentro, para ninguem precisar abrir para descobrir.
 export function Revelar({ titulo, resumo, children, abertoInicial = false }: RevelarProps) {
-  const [aberto, setAberto] = useState(abertoInicial);
+  // A chave sai do título porque ele é estável e único dentro de uma página, e
+  // é o que faz abrir aqui abrir também na tela de quem acompanha.
+  const [aberto, setAberto] = useEstadoEspelhado(`revelar:${titulo}`, abertoInicial);
   // O conteudo continua montado durante o fechamento, senao ele sumiria de uma
   // vez e a altura animaria sozinha, sem nada dentro. Fechado de vez, ele sai
   // do DOM: e o que evita reconstruir a grade de medidas e a corrida de estilos
@@ -44,7 +47,7 @@ export function Revelar({ titulo, resumo, children, abertoInicial = false }: Rev
       <button
         type="button"
         className="revelar-botao"
-        onClick={() => setAberto((atual) => !atual)}
+        onClick={() => setAberto(!aberto)}
         aria-expanded={aberto}
         aria-controls={id}
       >

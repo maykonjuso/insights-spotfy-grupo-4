@@ -27,15 +27,14 @@ export function Bolha({ apresentador, onEncerrar }: BolhaProps) {
         aria-expanded={aberta}
         aria-label={aberta ? "Fechar controles da apresentação" : "Abrir controles da apresentação"}
       >
-        <span className="bolha-aro" aria-hidden="true" />
         <Retrato apresentador={apresentador} pequeno />
-        <span className="bolha-ponto" aria-hidden="true" />
+        <span className="bolha-rotulo">ao vivo</span>
       </button>
 
       <div className="bolha-painel" hidden={!aberta}>
         <div className="bolha-topo">
-          <span className="bolha-selo">no ar</span>
           <strong>{apresentador.nome}</strong>
+          <small>apresentando para quem está com o app aberto</small>
         </div>
 
         <Link href="/admin" className="bolha-acao">

@@ -11,6 +11,7 @@ import { PreviewPlayer } from "../PreviewPlayer";
 import { ScoreDial } from "../ScoreDial";
 import { SoundFeatureGrid } from "../SoundFeatureGrid";
 import { WhatIfPanel } from "../WhatIfPanel";
+import { useEstadoEspelhado } from "../apresentacao/Apresentacao";
 import { Alterna } from "../ui/Alterna";
 import { PensandoIA } from "../ui/PensandoIA";
 import { ResumoFixo } from "../ui/ResumoFixo";
@@ -43,7 +44,7 @@ export function Resultado({ musica, onRecomecar }: ResultadoProps) {
   const tocandoEsta = player.sourceId === musica.id;
   const mostradorRef = useRef<HTMLDivElement>(null);
   const [notaNaTela, setNotaNaTela] = useState(true);
-  const [folhaAberta, setFolhaAberta] = useState(false);
+  const [folhaAberta, setFolhaAberta] = useEstadoEspelhado("resultado:folha", false);
   const [catalogo, setCatalogo] = useState<string[]>([]);
   const [filtro, setFiltro] = useState("");
 

@@ -32,7 +32,7 @@ export function PaginaProjeto() {
   // transmitindo daqui: publica a seção que estou lendo
   useEffect(() => {
     if (!transmitindo) return;
-    transmitir({ rota: "/projeto", secao: atual, rolagem: 0 });
+    transmitir({ rota: "/projeto", secao: atual });
   }, [transmitindo, atual, transmitir]);
 
   const indice = Math.max(0, SECOES.findIndex((secao) => secao.id === atual));

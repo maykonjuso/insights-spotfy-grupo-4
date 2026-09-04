@@ -3319,10 +3319,16 @@ p {
   }
 }
 
-/* ---------------- bolha de quem apresenta ---------------- */
+/* ==========================================================================
+   Apresentação: bolha, faixa e convite
 
-/* Fica em toda página. Antes os controles só existiam no /admin, então era
-   preciso voltar para lá só para encerrar. */
+   Seguem as mesmas regras do resto do app: os tokens de cartão (`--r-cartao`,
+   `--borda-cartao`), alvo de 48px com folga, material com desfoque para
+   camadas que flutuam sobre conteúdo, e nada piscando. O verde entra como
+   acento fino, não como banho de cor.
+   ========================================================================== */
+
+/* ---------------- bolha de quem apresenta ---------------- */
 
 .bolha {
   position: fixed;
@@ -3334,117 +3340,100 @@ p {
   gap: 10px;
 }
 
+/* Pílula, e não um círculo solto: o rótulo diz o estado sem precisar de ponto
+   piscando, e a forma se parece com os outros controles do app. */
 .bolha-toque {
-  position: relative;
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  padding: 0;
-  border: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+  padding: 6px 16px 6px 6px;
+  border: var(--borda-cartao);
   border-radius: 999px;
-  background: rgba(24, 26, 25, 0.94);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(26, 28, 27, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   cursor: pointer;
-  backdrop-filter: blur(12px);
-  transition: transform 0.2s var(--e-mola);
+  backdrop-filter: blur(14px);
+  transition: transform 0.18s var(--e), border-color 0.2s ease;
 }
 
 .bolha-toque:active {
-  transform: scale(0.92);
+  transform: scale(0.96);
 }
 
 .bolha .retrato {
-  width: 44px;
-  height: 44px;
-  font-size: 15px;
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid var(--ac);
+  font-size: 14px;
 }
 
-/* aro que pulsa: diz "no ar" sem ocupar espaço com texto */
-.bolha-aro {
-  position: absolute;
-  inset: 0;
-  border: 2px solid var(--ac);
-  border-radius: 999px;
-  animation: aro-vivo 2s ease-out infinite;
-}
-
-@keyframes aro-vivo {
-  0% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  70%,
-  100% {
-    opacity: 0;
-    transform: scale(1.32);
-  }
-}
-
-.bolha-ponto {
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 13px;
-  height: 13px;
-  border: 2px solid #0b0d0c;
-  border-radius: 999px;
-  background: var(--ac);
-}
-
-.bolha-painel {
-  display: grid;
-  gap: 6px;
-  width: 232px;
-  padding: 14px;
-  border: 1px solid rgba(30, 215, 96, 0.3);
-  border-radius: 18px;
-  background: rgba(22, 25, 23, 0.96);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(14px);
-  animation: entra 240ms var(--e) both;
-}
-
-.bolha-topo {
-  display: grid;
-  gap: 3px;
-  margin-bottom: 4px;
-}
-
-.bolha-topo strong {
-  font-size: 15px;
-  letter-spacing: -0.01em;
-}
-
-.bolha-selo {
+.bolha-rotulo {
   color: var(--ac-2);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
+.bolha-painel {
+  display: grid;
+  gap: 8px;
+  width: 244px;
+  padding: 16px;
+  border: var(--borda-cartao);
+  border-radius: var(--r-cartao);
+  background: rgba(24, 26, 25, 0.96);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  animation: entra 220ms var(--e) both;
+}
+
+.bolha-topo {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bolha-topo small {
+  color: var(--txt-3);
+  font-size: 11.5px;
+}
+
+.bolha-topo strong {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
 .bolha-acao {
   display: grid;
-  min-height: 44px;
+  min-height: 48px;
   place-items: center;
   border: var(--borda-cartao);
   border-radius: 12px;
   background: var(--surface-2);
   color: var(--txt);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   text-decoration: none;
+  transition: transform 0.16s var(--e);
 }
 
+.bolha-acao:active {
+  transform: scale(0.97);
+}
+
+/* destrutivo se distingue pela cor do texto, sem virar um bloco vermelho */
 .bolha-acao.is-parar {
-  border-color: rgba(255, 107, 107, 0.35);
-  background: rgba(255, 107, 107, 0.1);
-  color: #ffc9c9;
+  border-color: transparent;
+  background: transparent;
+  color: var(--bad);
 }
 
-/* ---------------- quem está acompanhando ---------------- */
+/* ---------------- faixa de quem acompanha ---------------- */
 
 .espelho-faixa {
   position: fixed;
@@ -3452,56 +3441,32 @@ p {
   left: 50%;
   z-index: 95;
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
   width: calc(min(100%, var(--palco)) - 20px);
-  padding: 10px 12px 10px 10px;
-  border: 1px solid rgba(30, 215, 96, 0.4);
-  border-radius: 22px;
-  background: linear-gradient(140deg, rgba(30, 215, 96, 0.16), rgba(18, 22, 19, 0.96) 62%);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(14px);
+  padding: 9px 10px 9px 9px;
+  border: var(--borda-cartao);
+  border-radius: 999px;
+  background: rgba(24, 26, 25, 0.95);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
   transform: translateX(-50%);
-  animation: sobe-faixa 460ms var(--e-mola) both;
+  animation: desce-faixa 380ms var(--e) both;
 }
 
-@keyframes sobe-faixa {
+@keyframes desce-faixa {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-22px) scale(0.94);
+    transform: translateX(-50%) translateY(-14px);
   }
 }
 
-/* a foto é o que deve chamar atenção: fica grande, com um aro que respira */
-.espelho-foto,
-.convite-foto {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-
-.espelho-foto .retrato,
-.convite-foto .retrato {
-  width: 54px;
-  height: 54px;
-  border: 2px solid var(--ac);
-  font-size: 18px;
-}
-
-.convite-foto .retrato {
-  width: 62px;
-  height: 62px;
-  font-size: 21px;
-}
-
-.espelho-aro,
-.convite-aro {
-  position: absolute;
-  inset: -5px;
-  border: 2px solid var(--ac);
-  border-radius: 999px;
-  animation: aro-vivo 2.2s ease-out infinite;
+.espelho-foto .retrato {
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--ac);
+  font-size: 15px;
 }
 
 .espelho-nome {
@@ -3512,25 +3477,22 @@ p {
 
 .espelho-nome strong {
   overflow: hidden;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .espelho-nome small {
   overflow: hidden;
-  color: var(--txt-2);
-  font-size: 12.5px;
+  color: var(--txt-3);
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .espelho-selo {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
   color: var(--ac-2);
   font-size: 10px;
   font-weight: 800;
@@ -3538,48 +3500,63 @@ p {
   text-transform: uppercase;
 }
 
-.espelho-selo i {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--ac);
-  animation: pulso-ar 1.4s ease-in-out infinite;
-}
-
 .espelho-sair {
-  flex: 0 0 auto;
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--ac);
-  color: var(--ac-ink);
+  background: var(--surface-3);
+  color: var(--txt);
   cursor: pointer;
-  font-size: 13.5px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 0.16s var(--e), background 0.2s ease;
 }
 
 .espelho-sair:active {
-  transform: scale(0.94);
+  background: var(--ac);
+  color: var(--ac-ink);
+  transform: scale(0.95);
 }
 
 /* ---------------- convite ---------------- */
 
+/* Fica embaixo, na zona do polegar, e nomeia a tarefa logo no título. A saída
+   é explícita, e a barra de tempo mostra o que vai acontecer sozinho. */
+
+.convite {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  padding: 0 12px calc(14px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
 .convite-cartao {
   position: relative;
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
-  gap: 14px 16px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px 14px;
   width: min(100%, var(--palco));
-  padding: 18px;
-  border: 1px solid rgba(30, 215, 96, 0.32);
+  padding: 18px 18px 20px;
+  border: var(--borda-cartao);
   border-radius: 24px;
-  background: linear-gradient(150deg, rgba(30, 215, 96, 0.14), rgba(20, 23, 21, 0.97) 60%);
-  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px);
+  background: rgba(24, 26, 25, 0.97);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
   overflow: hidden;
   pointer-events: auto;
-  animation: sobe 420ms var(--e-mola) both;
+  animation: sobe 380ms var(--e) both;
+}
+
+.convite-foto .retrato {
+  width: 56px;
+  height: 56px;
+  border: 1.5px solid var(--ac);
+  font-size: 19px;
 }
 
 .convite-texto {
@@ -3590,16 +3567,77 @@ p {
 }
 
 .convite-texto strong {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .convite-texto span:not(.espelho-selo) {
   color: var(--txt-2);
   font-size: 13.5px;
   line-height: 1.45;
+}
+
+.convite-acoes {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.convite-acoes .btn-principal {
+  min-height: 52px;
+}
+
+/* secundária como texto: a escolha principal é acompanhar, e duas caixas
+   iguais fariam as duas parecerem igualmente prováveis */
+.convite-acoes .btn-secundario {
+  min-height: 44px;
+  margin-top: 0;
+  border: 0;
+  background: none;
+  color: var(--txt-3);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.convite-contagem {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(4, 23, 10, 0.2);
+  font-size: 12.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.convite-barra {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--surface-3);
+}
+
+.convite-barra i {
+  display: block;
+  height: 100%;
+  background: var(--ac);
+  transform-origin: left center;
+  animation: correr linear both;
+}
+
+@keyframes correr {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 /* ---------------- ponteiro e cliques ---------------- */

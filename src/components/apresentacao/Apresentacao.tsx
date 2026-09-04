@@ -28,8 +28,13 @@ export type Posicao = {
   rota: string;
   tela?: string;
   secao?: string;
-  rolagem: number;
 };
+
+/** rolagem em fração da altura rolável, medida na hora do envio */
+function rolagemAtual() {
+  const rolavel = document.documentElement.scrollHeight - window.innerHeight;
+  return rolavel > 0 ? window.scrollY / rolavel : 0;
+}
 
 type Contexto = {
   /** estado recebido de quem está transmitindo, quando estou acompanhando */
@@ -40,6 +45,10 @@ type Contexto = {
   encerrar: () => void;
   transmitindo: boolean;
   apresentador: Apresentador | null;
+  /** estado de interface recebido de quem apresenta */
+  espelho: Record<string, unknown>;
+  /** publica uma peça do estado de interface */
+  publicarUi: (chave: string, valor: unknown) => void;
 };
 
 const ApresentacaoContexto = createContext<Contexto | null>(null);
@@ -48,6 +57,32 @@ export function useApresentacao() {
   const contexto = useContext(ApresentacaoContexto);
   if (!contexto) throw new Error("useApresentacao fora do provedor");
   return contexto;
+}
+
+/**
+ * Estado que se espelha sozinho na tela de quem acompanha.
+ *
+ * Usar isto no lugar de `useState` faz o componente participar da
+ * apresentação: apresentando, cada mudança é publicada; acompanhando, o valor
+ * vem de quem apresenta e o toque local não muda nada, que é o comportamento
+ * de "só assistir".
+ */
+export function useEstadoEspelhado<T>(chave: string, inicial: T): [T, (valor: T) => void] {
+  const { transmitindo, seguindo, espelho, publicarUi } = useApresentacao();
+  const [local, setLocal] = useState<T>(inicial);
+
+  const recebido = espelho[chave] as T | undefined;
+  const valor = seguindo && recebido !== undefined ? recebido : local;
+
+  const definir = useCallback(
+    (proximo: T) => {
+      setLocal(proximo);
+      if (transmitindo) publicarUi(chave, proximo);
+    },
+    [chave, transmitindo, publicarUi],
+  );
+
+  return [valor, definir];
 }
 
 // Quem apresenta continua sendo quem apresenta ao trocar de aba ou de rota.
@@ -87,6 +122,9 @@ function paraFracao(x: number, y: number) {
   return { x: (x - r.left) / r.width, y: y / window.innerHeight };
 }
 
+/** referência estável, para o contexto não mudar a cada render */
+const VAZIO: Record<string, unknown> = {};
+
 const SEGUNDOS_PARA_ACEITAR = 5;
 /** um estado sem sinal por mais que isso significa que a apresentação acabou */
 const SILENCIO_ATE_ENCERRAR = 20_000;
@@ -110,6 +148,8 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   const seguindoRef = useRef(false);
   /** última posição publicada, repetida pelo batimento */
   const ultimaPosicao = useRef<Posicao | null>(null);
+  /** estado de interface acumulado de quem apresenta */
+  const ui = useRef<Record<string, unknown>>({});
   const [apresentador, setApresentador] = useState<Apresentador | null>(null);
 
   // retoma o papel de apresentador ao abrir outra aba ou trocar de rota
@@ -255,10 +295,22 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   }, [seguindo]);
 
   // ---- espelho: rota, rolagem e trava
+  const ultimaRolagem = useRef(-1);
+
   useEffect(() => {
     if (!seguindo) return;
 
     if (seguindo.rota && seguindo.rota !== rotaAtual) router.push(seguindo.rota);
+
+    // Quando vem uma seção, quem posiciona a página é a landing, com
+    // scrollIntoView. Rolar por fração ao mesmo tempo faria as duas brigarem, e
+    // o resultado era o slide nunca chegar no lugar.
+    if (seguindo.secao) return;
+
+    // o batimento repete o mesmo estado de três em três segundos; sem este
+    // corte, cada repetição disparava uma rolagem suave por cima da anterior
+    if (Math.abs(seguindo.rolagem - ultimaRolagem.current) < 0.01) return;
+    ultimaRolagem.current = seguindo.rolagem;
 
     const alturaRolavel = document.documentElement.scrollHeight - window.innerHeight;
     if (alturaRolavel > 0) {
@@ -282,11 +334,31 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     const eu = euApresento.current;
     if (!eu) return;
     ultimaPosicao.current = posicao;
+    // A rolagem é medida aqui, e não recebida pronta. Quem chamava mandava
+    // `rolagem: 0` fixo, então toda troca de tela ou de seção jogava quem
+    // acompanhava de volta ao topo, e o batimento repetia isso de três em três
+    // segundos por cima de qualquer rolagem em andamento.
     canal.current?.enviar({
       tipo: "estado",
-      estado: { ...posicao, apresentador: eu, em: Date.now() },
+      estado: {
+        ...posicao,
+        rolagem: rolagemAtual(),
+        ui: { ...ui.current },
+        apresentador: eu,
+        em: Date.now(),
+      },
     });
   }, []);
+
+  const publicarUi = useCallback(
+    (chave: string, valor: unknown) => {
+      if (!euApresento.current) return;
+      ui.current[chave] = valor;
+      const posicao = ultimaPosicao.current;
+      if (posicao) transmitir(posicao);
+    },
+    [transmitir],
+  );
 
   // Batimento no provedor, e não na tela do /admin.
   //
@@ -315,11 +387,8 @@ export function Apresentacao({ children }: { children: ReactNode }) {
       if (agora - ultimo < 200) return;
       ultimo = agora;
 
-      const rolavel = document.documentElement.scrollHeight - window.innerHeight;
       const posicao = ultimaPosicao.current;
-      if (!posicao || rolavel <= 0) return;
-
-      transmitir({ ...posicao, rolagem: window.scrollY / rolavel });
+      if (posicao) transmitir(posicao);
     }
 
     window.addEventListener("scroll", aoRolar, { passive: true });
@@ -371,8 +440,17 @@ export function Apresentacao({ children }: { children: ReactNode }) {
   }, [transmitindo, servidor]);
 
   const valor = useMemo<Contexto>(
-    () => ({ seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador }),
-    [seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador],
+    () => ({
+      seguindo,
+      transmitir,
+      iniciar,
+      encerrar,
+      transmitindo,
+      apresentador,
+      espelho: seguindo?.ui ?? VAZIO,
+      publicarUi,
+    }),
+    [seguindo, transmitir, iniciar, encerrar, transmitindo, apresentador, publicarUi],
   );
 
   return (
@@ -419,15 +497,11 @@ function Convite({
     <div className="convite" role="dialog" aria-live="polite">
       <div className="convite-cartao">
         <span className="convite-foto">
-          <span className="convite-aro" aria-hidden="true" />
           <Retrato apresentador={apresentador} />
         </span>
 
         <div className="convite-texto">
-          <span className="espelho-selo">
-            <i aria-hidden="true" />
-            ao vivo
-          </span>
+          <span className="espelho-selo">ao vivo</span>
           <strong>{apresentador.nome}</strong>
           <span>está apresentando. Quer acompanhar a tela?</span>
         </div>
@@ -468,15 +542,11 @@ function Espelho({
 
       <div className="espelho-faixa">
         <span className="espelho-foto">
-          <span className="espelho-aro" aria-hidden="true" />
           <Retrato apresentador={apresentador} />
         </span>
 
         <span className="espelho-nome">
-          <span className="espelho-selo">
-            <i aria-hidden="true" />
-            ao vivo
-          </span>
+          <span className="espelho-selo">ao vivo</span>
           <strong>{apresentador.nome}</strong>
           <small>está apresentando para você</small>
         </span>
