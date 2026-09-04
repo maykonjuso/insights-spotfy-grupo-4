@@ -1601,6 +1601,11 @@ p {
   display: grid;
   justify-items: end;
   gap: 0;
+  /* teto para a coluna da nota: sem ele, uma legenda longa empurrava a coluna
+     `auto` para alem da pilula e o texto saia por cima dos sliders, que ficam
+     logo abaixo e sao justamente o que se esta mexendo quando esta barra
+     aparece */
+  max-width: 15ch;
   padding-left: 12px;
   border-left: 1px solid var(--line);
   text-align: right;
@@ -1618,7 +1623,9 @@ p {
 .resumo-nota small {
   color: var(--txt-3);
   font-size: 10.5px;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .resumo-fixo.is-high .resumo-nota strong {
@@ -2029,10 +2036,16 @@ p {
 .dial-centro {
   position: absolute;
   top: 45%;
+  left: 50%;
+  /* Largura amarrada ao vao interno do anel, e nao livre.
+     Sem isso a legenda ficava numa linha so: "Incerto - nao use para decidir"
+     e mais que o dobro do diametro do mostrador, entao ela atravessava o arco
+     e seguia por cima do que estivesse ao lado. */
+  width: 66%;
   display: grid;
   justify-items: center;
   gap: 2px;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   text-align: center;
 }
 
@@ -2047,6 +2060,10 @@ p {
 .dial-centro span {
   font-size: 13.5px;
   font-weight: 800;
+  line-height: 1.25;
+  /* reparte as linhas por igual em vez de deixar uma palavra sozinha embaixo */
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .dial-centro small {
