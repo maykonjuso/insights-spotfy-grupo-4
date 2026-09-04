@@ -338,6 +338,19 @@ export function Apresentacao({ children }: { children: ReactNode }) {
     }
   }, [seguindo, rotaAtual, router]);
 
+  // Marca no body o que está flutuando na tela, para o CSS empilhar sem que
+  // uma camada cubra a outra: a faixa de quem acompanha ficava exatamente onde
+  // a barra do score começa, e com z-index maior a cobria por completo.
+  useEffect(() => {
+    const classes = document.body.classList;
+    if (seguindo) classes.add("com-faixa");
+    if (transmitindo) classes.add("com-bolha");
+    return () => {
+      if (seguindo) classes.remove("com-faixa");
+      if (transmitindo) classes.remove("com-bolha");
+    };
+  }, [seguindo, transmitindo]);
+
   // Bloqueio de gesto, e não `overflow: hidden` no body.
   //
   // O overflow escondido propaga para a janela e a torna não rolável, e aí o

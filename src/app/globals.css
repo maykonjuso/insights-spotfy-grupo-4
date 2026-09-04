@@ -4894,3 +4894,36 @@ p {
   font-size: 12.5px;
   line-height: 1.55;
 }
+
+
+/* ---------------- camadas flutuantes não se esbarram ---------------- */
+
+/* Acompanhando, a faixa de quem apresenta ocupa o topo. A barra do score
+   desce o suficiente para as duas conviverem, em vez de uma cobrir a outra. */
+body.com-faixa .resumo-fixo {
+  top: calc(var(--alt-topbar) + 78px);
+}
+
+body.com-faixa .resumo-veu {
+  top: calc(var(--alt-topbar) + 66px);
+  height: 118px;
+}
+
+/* Apresentando, a bolha flutua no canto de baixo. O conteúdo ganha uma faixa
+   de respiro do tamanho dela, para o botão do rodapé nunca ficar por baixo. */
+body.com-bolha .tela,
+body.com-bolha .projeto-corpo {
+  padding-bottom: 88px;
+}
+
+@media (min-width: 620px) {
+  /* em tela larga a bolha fica fora da coluna do palco, então não atrapalha */
+  body.com-bolha .tela,
+  body.com-bolha .projeto-corpo {
+    padding-bottom: 0;
+  }
+
+  .bolha {
+    right: max(24px, calc(50vw - var(--palco) / 2 - 76px));
+  }
+}
